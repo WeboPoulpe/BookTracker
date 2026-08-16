@@ -63,6 +63,17 @@ export default async function Reglages() {
               detail={`CSV Goodreads ou JSON complet · ${pluriel(total, "livre")}`}
             />
           </div>
+
+          {/* Notice courte : les deux imports inquiètent pour la même raison
+              — la peur d'écraser ou de dupliquer. Deux phrases suffisent à
+              lever le doute, un pavé ne serait pas lu. */}
+          <p className="mt-2 px-1 text-[12.5px] leading-relaxed text-encre-45">
+            <span className="font-semibold text-encre-70">
+              Goodreads apporte tes livres, Kindle tes surlignages.
+            </span>{" "}
+            Tu vois toujours ce qui sera ajouté avant de confirmer, et
+            réimporter le même fichier ne crée jamais de doublon.
+          </p>
         </section>
 
         <section>
