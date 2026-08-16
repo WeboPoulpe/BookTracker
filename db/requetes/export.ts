@@ -6,14 +6,13 @@ import { citations, couvertures, lectures, livres, series, sessions } from "@/db
 /**
  * Instantané complet de la bibliothèque.
  *
- * Une seule implémentation, partagée par le téléchargement manuel et par la
- * sauvegarde automatique : deux exports qui divergeraient donneraient une
- * sauvegarde incomplète sans que rien ne le signale.
+ * C'est le seul filet de sécurité de l'app : aucune sauvegarde automatique
+ * n'est en place, l'export manuel en tient lieu. Il doit donc être complet.
  *
  * Les couvertures importées ne sont pas incluses. Elles pèsent des dizaines
- * de kilo-octets chacune, et les faire entrer dans un JSON quotidien ferait
- * exploser le volume pour des images qu'on peut recharger. Leur nombre est
- * rapporté, pour qu'une restauration sache ce qui manque.
+ * de kilo-octets chacune et feraient exploser le volume, pour des images
+ * rechargeables. Leur nombre est rapporté, afin qu'une restauration sache ce
+ * qui manque.
  */
 export type ExportComplet = {
   version: number;

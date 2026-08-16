@@ -1,7 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "crons": [{ "path": "/api/sauvegarde", "schedule": "0 4 * * *" }],
   "headers": [
     {
       "source": "/sw.js",

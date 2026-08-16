@@ -178,24 +178,14 @@ citations.
 Contrôles : `npx tsx scripts/verifier-kindle.ts` et
 `npx tsx scripts/verifier-titres.ts`.
 
-## Sauvegarde automatique
+## Sauvegarde
 
-Cron Vercel quotidien à 4 h → `/api/sauvegarde` → un instantané JSON complet
-dans un blob, **hors de Neon** : une sauvegarde stockée dans la base qu'elle
-protège ne protège de rien. Trente jours conservés, les plus anciennes sont
-purgées.
+**Aucune sauvegarde automatique.** Le seul filet est l'export JSON manuel,
+depuis *Réglages → Exporter*. À faire de temps en temps : une base de données
+personnelle sans sauvegarde est une perte de données différée (§11).
 
-- L'export manuel et la sauvegarde partagent **la même fonction**
-  (`db/requetes/export.ts`) : deux implémentations qui divergeraient
-  donneraient une sauvegarde incomplète sans que rien ne le signale.
-- Sans `BLOB_READ_WRITE_TOKEN`, le cron **n'échoue pas** — il journalise et
-  passe. Un échec quotidien noierait les vraies alertes.
-- Le cron vérifie `CRON_SECRET` quand il est défini.
-- Les couvertures importées ne sont pas incluses : des dizaines de ko chacune
-  dans un JSON quotidien. Leur nombre est rapporté.
-
-> Le plan Hobby de Vercel plafonne les crons à **une exécution par jour**, et
-> la déclenche à ±59 min de l'heure demandée.
+L'instantané est produit par `db/requetes/export.ts`, en une seule
+implémentation partagée par les deux formats d'export.
 
 ## Normalisation de texte
 

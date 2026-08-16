@@ -41,7 +41,6 @@ compilation. Sans elle, le build échoue.
 | `NEXT_PUBLIC_MODE_LOCAL` | `true` | non (défaut : `true`) |
 | `UTILISATEUR_LOCAL_ID` | `local` | non (défaut : `local`) |
 | `UTILISATEUR_LOCAL_EMAIL` | `maxence@webomax.fr` | non |
-| `CRON_SECRET` | Aléatoire, voir §3 | non, mais recommandée |
 | `AUTH_SECRET` | Copier depuis `.env.local` | non tant que l'OAuth dort |
 
 > Ne recopie jamais `DATABASE_URL` dans un fichier versionné : elle contient
@@ -49,31 +48,7 @@ compilation. Sans elle, le build échoue.
 
 ---
 
-## 3. Activer la sauvegarde automatique
-
-Un cron quotidien à 4 h écrit un instantané JSON de la bibliothèque. Il lui
-faut un espace de stockage **hors de la base** — une sauvegarde rangée dans
-la base qu'elle protège ne protège de rien.
-
-1. *Storage → Create Database → Blob*, puis relier le store au projet.
-   Vercel ajoute alors `BLOB_READ_WRITE_TOKEN` de lui-même.
-2. Ajouter `CRON_SECRET` avec une valeur aléatoire :
-   `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`.
-   Vercel signe ses appels de cron avec ; sans elle, connaître l'URL
-   suffirait à déclencher la sauvegarde depuis n'importe où.
-3. Redéployer.
-
-Tant que le stockage n'est pas configuré, le cron **journalise et passe** au
-lieu d'échouer : rien ne casse, mais rien n'est sauvegardé non plus. Le
-bouton *Sauvegarder maintenant* des réglages permet de le vérifier sans
-attendre 4 h du matin.
-
-> Le plan Hobby limite les crons à une exécution par jour et les déclenche à
-> ±59 min de l'heure demandée. Sans importance pour une sauvegarde.
-
----
-
-## 4. Régler la région des fonctions
+## 3. Régler la région des fonctions
 
 *Settings → Functions → Function Region* → **London (lhr1)**
 
@@ -85,7 +60,7 @@ Puis *Deployments → Redeploy* pour que le changement prenne effet.
 
 ---
 
-## 5. Vérifier
+## 4. Vérifier
 
 Sur ton téléphone, à l'adresse `.vercel.app` :
 
@@ -98,7 +73,6 @@ Sur ton téléphone, à l'adresse `.vercel.app` :
 - [ ] **Mode avion** : les écrans déjà visités s'ouvrent, une saisie affiche
       le bandeau « Hors ligne », et au retour du réseau un bandeau confirme
       l'enregistrement
-- [ ] *Réglages → Sauvegarder maintenant* rend un bilan chiffré
 
 Le service worker n'existe qu'en production — ce test est impossible en
 `npm run dev`.
@@ -112,10 +86,13 @@ obtiennent une URL de prévisualisation.
 
 ### Ce qui reste ouvert
 
-**L'app n'a aucune authentification.** Quiconque connaît l'URL peut lire et
-modifier la bibliothèque. L'indexation est bloquée (`app/robots.ts`), mais ce
-n'est pas une protection. Décision assumée le temps de juger le design ; à
-reprendre avant de diffuser l'adresse.
+**Aucune authentification.** Quiconque connaît l'URL peut lire et modifier la
+bibliothèque. L'indexation est bloquée (`app/robots.ts`), mais ce n'est pas
+une protection. Décision assumée le temps de juger le design ; à reprendre
+avant de diffuser l'adresse.
+
+**Aucune sauvegarde automatique.** Le seul filet est l'export JSON manuel,
+depuis *Réglages → Exporter*. À faire de temps en temps.
 
 ### Si le build échoue
 
@@ -124,4 +101,3 @@ reprendre avant de diffuser l'adresse.
 | `DATABASE_URL manquant` | Variable non saisie avant le premier déploiement |
 | Erreur de type sur `app/sw.ts` | Le service worker se vérifie à part : `npm run typecheck` |
 | `Serverless Functions ... single region` | Retirer toute clé `regions` de `vercel.json` |
-| `limited to daily cron jobs` | Le plan Hobby refuse plus d'une exécution par jour |

@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { ObjectifAnnuel } from "@/components/ObjectifAnnuel";
-import { Sauvegarde } from "@/components/Sauvegarde";
 import { EnTete } from "@/components/ui/EnTete";
 import { compterParStatut } from "@/db/requetes/livres";
 import { pluriel } from "@/lib/format";
@@ -63,7 +62,6 @@ export default async function Reglages() {
               titre="Exporter"
               detail={`CSV Goodreads ou JSON complet · ${pluriel(total, "livre")}`}
             />
-            <Sauvegarde />
           </div>
         </section>
 

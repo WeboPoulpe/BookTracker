@@ -101,8 +101,6 @@ export async function GET(requete: Request) {
       });
     }
 
-    // Même instantané que la sauvegarde automatique : deux implémentations
-    // qui divergeraient donneraient une sauvegarde incomplète en silence.
     const contenu = await exportComplet(utilisateurId);
 
     return new NextResponse(JSON.stringify(contenu, null, 2), {
