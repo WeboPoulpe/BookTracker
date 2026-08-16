@@ -9,7 +9,7 @@ import {
   IconeBibliotheque,
   IconeEtagere,
   IconePal,
-  IconeReglages,
+  IconeStats,
 } from "@/components/ui/Icones";
 import { RESSORT } from "@/lib/anim";
 
@@ -32,8 +32,11 @@ const ONGLETS: Onglet[] = [
     englobe: ["/series", "/citations"],
   },
   { href: "/etagere", libelle: "Étagère", Icone: IconeEtagere },
+  { href: "/statistiques", libelle: "Stats", Icone: IconeStats },
   { href: "/pal", libelle: "PAL", Icone: IconePal },
-  { href: "/reglages", libelle: "Réglages", Icone: IconeReglages },
+  // Réglages quitte la barre : cinq cibles est le maximum atteignable au
+  // pouce, et c'est l'écran qu'on ouvre le plus rarement. Il passe derrière
+  // l'engrenage de l'accueil.
 ];
 
 function estActif(pathname: string, onglet: Onglet) {

@@ -1,5 +1,8 @@
+import Link from "next/link";
+
 import { TableauDeBord } from "@/components/TableauDeBord";
 import { EnTete } from "@/components/ui/EnTete";
+import { IconeReglages } from "@/components/ui/Icones";
 import { tableauDeBord } from "@/db/requetes/stats";
 import { utilisateurCourant } from "@/lib/utilisateur";
 
@@ -26,6 +29,17 @@ export default async function Accueil() {
           stats.enCours.length > 0
             ? `${stats.enCours.length} lecture${stats.enCours.length > 1 ? "s" : ""} en cours`
             : `Année ${stats.annee}`
+        }
+        action={
+          // Réglages a quitté la tapbar au profit des statistiques : sans ce
+          // point d'entrée, l'import Goodreads deviendrait introuvable.
+          <Link
+            href="/reglages"
+            aria-label="Réglages"
+            className="flex h-11 w-11 items-center justify-center rounded-pilule bg-white/70 text-encre-70 ring-1 ring-white/80 backdrop-blur-sm"
+          >
+            <IconeReglages className="h-[21px] w-[21px]" />
+          </Link>
         }
       />
       <TableauDeBord

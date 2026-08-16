@@ -1,20 +1,110 @@
+import Link from "next/link";
+
 import { FiltresStatut } from "@/components/FiltresStatut";
 import { GrilleLivres } from "@/components/GrilleLivres";
 import { BoutonLien } from "@/components/ui/Bouton";
 import { EnTete, EtatVide } from "@/components/ui/EnTete";
-import { compterParStatut, listerLivres } from "@/db/requetes/livres";
+import { compterParStatut, listerLivres, type FiltresLivres } from "@/db/requetes/livres";
 import type { Statut } from "@/db/schema";
+import { LONGUEURS } from "@/db/requetes/statistiques";
 import { LIBELLE_STATUT, pluriel } from "@/lib/format";
 import { utilisateurCourantId } from "@/lib/utilisateur";
-import { STATUTS } from "@/lib/validation";
+import { FORMATS, STATUTS } from "@/lib/validation";
 
 // La bibliothèque bouge à chaque ajout : pas de cache statique.
 export const dynamic = "force-dynamic";
 
+const MOIS_LONGS = [
+  "janvier", "février", "mars", "avril", "mai", "juin",
+  "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+];
+
+const LIBELLE_FORMAT: Record<string, string> = {
+  papier: "Papier",
+  ebook: "Numérique",
+  audio: "Audio",
+};
+
+type Params = {
+  statut?: string;
+  q?: string;
+  annee?: string;
+  mois?: string;
+  genre?: string;
+  format?: string;
+  note?: string;
+  pages?: string;
+  auteur?: string;
+};
+
+function entier(v: string | undefined, min: number, max: number) {
+  if (!v) return undefined;
+  const n = Number.parseInt(v, 10);
+  return Number.isInteger(n) && n >= min && n <= max ? n : undefined;
+}
+
+/**
+ * Traduit les paramètres d'URL en filtres, et en étiquettes lisibles.
+ *
+ * Les étiquettes ne sont pas cosmétiques : arriver ici depuis un graphique
+ * sans savoir *ce qu'on regarde* est déroutant, et il faut un moyen évident
+ * de revenir à la bibliothèque entière.
+ */
+function lireFiltres(p: Params) {
+  const filtres: FiltresLivres = {};
+  const etiquettes: string[] = [];
+
+  const annee = entier(p.annee, 1900, 2200);
+  if (annee !== undefined) {
+    filtres.annee = annee;
+    const mois = entier(p.mois, 1, 12);
+    if (mois !== undefined) {
+      filtres.mois = mois;
+      etiquettes.push(`lus en ${MOIS_LONGS[mois - 1]} ${annee}`);
+    } else {
+      etiquettes.push(`lus en ${annee}`);
+    }
+  }
+
+  if (p.genre) {
+    filtres.genre = p.genre;
+    etiquettes.push(p.genre);
+  }
+
+  if (p.format && (FORMATS as readonly string[]).includes(p.format)) {
+    filtres.format = p.format as (typeof FORMATS)[number];
+    etiquettes.push(LIBELLE_FORMAT[p.format]);
+  }
+
+  if (p.note) {
+    const n = Number.parseFloat(p.note);
+    if (Number.isFinite(n) && n >= 0 && n <= 5) {
+      filtres.note = n;
+      etiquettes.push(`notés ${n.toLocaleString("fr-FR")} ★`);
+    }
+  }
+
+  if (p.pages) {
+    const tranche = LONGUEURS.find((t) => t.cle === p.pages);
+    if (tranche) {
+      filtres.pagesMin = tranche.min || undefined;
+      if (tranche.max !== Number.MAX_SAFE_INTEGER) filtres.pagesMax = tranche.max;
+      etiquettes.push(tranche.libelle);
+    }
+  }
+
+  if (p.auteur) {
+    filtres.auteur = p.auteur;
+    etiquettes.push(p.auteur);
+  }
+
+  return { filtres, etiquettes };
+}
+
 export default async function Bibliotheque({
   searchParams,
 }: {
-  searchParams: Promise<{ statut?: string; q?: string }>;
+  searchParams: Promise<Params>;
 }) {
   const params = await searchParams;
   const statut = (STATUTS as readonly string[]).includes(params.statut ?? "")
@@ -22,9 +112,17 @@ export default async function Bibliotheque({
     : "tous";
   const recherche = params.q?.trim() || undefined;
 
+  const { filtres, etiquettes } = lireFiltres(params);
+  const filtre = etiquettes.length > 0;
+
   const utilisateurId = await utilisateurCourantId();
   const [livres, { parStatut, total }] = await Promise.all([
-    listerLivres(utilisateurId, { statut, recherche, tri: "recent" }),
+    listerLivres(utilisateurId, {
+      ...filtres,
+      statut,
+      recherche,
+      tri: filtre ? "titre" : "recent",
+    }),
     compterParStatut(utilisateurId),
   ]);
 
@@ -35,7 +133,9 @@ export default async function Bibliotheque({
         detail={
           recherche
             ? `${pluriel(livres.length, "résultat")} pour « ${recherche} »`
-            : pluriel(total, "livre")
+            : filtre
+              ? pluriel(livres.length, "livre")
+              : pluriel(total, "livre")
         }
         action={
           <BoutonLien href="/bibliotheque/ajouter" taille="sm" variante="doux">
@@ -44,16 +144,34 @@ export default async function Bibliotheque({
         }
       />
 
-      <div className="px-5">
-        <FiltresStatut actif={statut} compteurs={parStatut} total={total} />
-      </div>
+      {filtre ? (
+        // Bandeau de filtre actif : on arrive ici depuis un graphique, il
+        // faut voir ce qu'on regarde et pouvoir en sortir d'un geste.
+        <div className="mx-5 mb-3 flex items-center justify-between gap-3 rounded-tuile bg-rose-poudre px-4 py-2.5">
+          <p className="min-w-0 text-[13px] font-medium text-rose-encre">
+            {etiquettes.join(" · ")}
+          </p>
+          <Link
+            href="/bibliotheque"
+            className="shrink-0 text-[12px] font-semibold text-rose-encre underline"
+          >
+            Tout voir
+          </Link>
+        </div>
+      ) : (
+        <div className="px-5">
+          <FiltresStatut actif={statut} compteurs={parStatut} total={total} />
+        </div>
+      )}
 
       {livres.length === 0 ? (
         <EtatVide
           titre={
-            total === 0
-              ? "Aucun livre pour l'instant."
-              : `Rien en « ${statut === "tous" ? "tous" : LIBELLE_STATUT[statut]} ».`
+            filtre
+              ? "Aucun livre pour ce filtre."
+              : total === 0
+                ? "Aucun livre pour l'instant."
+                : `Rien en « ${statut === "tous" ? "tous" : LIBELLE_STATUT[statut]} ».`
           }
           texte={
             total === 0
@@ -70,6 +188,10 @@ export default async function Bibliotheque({
                   Ajouter un livre
                 </BoutonLien>
               </div>
+            ) : filtre ? (
+              <BoutonLien href="/bibliotheque" taille="sm" variante="doux">
+                Voir toute la bibliothèque
+              </BoutonLien>
             ) : undefined
           }
         />

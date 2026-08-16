@@ -1,4 +1,17 @@
-import { and, asc, count, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNull,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -64,6 +77,19 @@ export type FiltresLivres = {
   serieId?: number;
   tri?: "recent" | "titre" | "auteur" | "note";
   limite?: number;
+
+  /* Filtres alimentés par les graphiques de l'écran Statistiques : chaque
+     barre doit pouvoir renvoyer vers les livres qu'elle compte. */
+  auteur?: string;
+  format?: "papier" | "ebook" | "audio";
+  /** Note exacte, en demi-étoiles */
+  note?: number;
+  /** Tranche de pagination, bornes incluses */
+  pagesMin?: number;
+  pagesMax?: number;
+  /** Année et mois de *fin de lecture*, pas d'ajout */
+  annee?: number;
+  mois?: number;
 };
 
 export async function listerLivres(
@@ -81,6 +107,46 @@ export async function listerLivres(
   if (filtres.serieId) {
     conditions.push(eq(livres.serieId, filtres.serieId));
   }
+  if (filtres.auteur) {
+    conditions.push(eq(livres.auteur, filtres.auteur));
+  }
+  if (filtres.format) {
+    conditions.push(eq(livres.format, filtres.format));
+  }
+  if (filtres.note !== undefined) {
+    conditions.push(eq(livres.note, filtres.note));
+  }
+  if (filtres.pagesMin !== undefined) {
+    conditions.push(gte(livres.pages, filtres.pagesMin));
+  }
+  if (filtres.pagesMax !== undefined) {
+    conditions.push(lte(livres.pages, filtres.pagesMax));
+  }
+
+  if (filtres.annee !== undefined) {
+    // EXISTS sur une lecture terminée dans la période : un livre relu deux
+    // fois ne doit apparaître qu'une seule fois dans la liste, ce qu'une
+    // jointure produirait en double.
+    const debut = filtres.mois
+      ? `${filtres.annee}-${String(filtres.mois).padStart(2, "0")}-01`
+      : `${filtres.annee}-01-01`;
+    const fin = filtres.mois
+      ? // Premier jour du mois suivant, borne exclue : évite d'avoir à
+        // connaître la longueur du mois, années bissextiles comprises.
+        filtres.mois === 12
+        ? `${filtres.annee + 1}-01-01`
+        : `${filtres.annee}-${String(filtres.mois + 1).padStart(2, "0")}-01`
+      : `${filtres.annee + 1}-01-01`;
+
+    conditions.push(sql`exists (
+      select 1 from lectures le
+      where le.livre_id = ${livres.id}
+        and le.abandonnee is not true
+        and le.fin >= ${debut}::date
+        and le.fin < ${fin}::date
+    )`);
+  }
+
   if (filtres.recherche?.trim()) {
     const motif = `%${filtres.recherche.trim()}%`;
     // ilike : la recherche d'une bibliothèque personnelle se fait au jugé,

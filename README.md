@@ -158,6 +158,48 @@ citations, et le livre lui-même.
   serveur sous forme de référence, pas de valeur : `AXES.map` y échoue avec
   « is not a function ». D'où `lib/notation.ts`.
 
+## Statistiques
+
+Onglet `/statistiques`, avec une portée réglable : toutes les années, une
+année, ou un mois.
+
+**Les statistiques comptent des *lectures*, pas des livres.** Une relecture
+compte pour deux — c'est le sens de « livres lus cette année ». Les lectures
+abandonnées sont exclues : elles ont une date de fin, mais les compter
+fausserait autant la moyenne de pages que le total.
+
+**Chaque barre renvoie aux livres qu'elle compte**, via les filtres d'URL de
+`/bibliotheque` (`annee`, `mois`, `genre`, `format`, `note`, `pages`,
+`auteur`). Un bandeau y rappelle le filtre actif et permet d'en sortir.
+
+Règles de visualisation appliquées :
+
+- **Jamais deux échelles sur un même axe.** « Livres par mois » et « pages par
+  mois » sont deux graphiques distincts ; les superposer laisserait lire des
+  corrélations inventées.
+- **Une seule teinte par graphique.** Ce sont des comparaisons de grandeur à
+  série unique : c'est la longueur de la barre qui porte la valeur. Colorer
+  chaque barre dépenserait le canal d'identité à répéter ce que la longueur
+  montre déjà. Seules les tranches de longueur prennent une rampe ordinale,
+  où la couleur redit l'épaisseur du livre.
+- **Palette validée, pas choisie à l'œil** : rampe rose `#E09BBB → #75294A`
+  (clarté monotone, écarts ≥ 0,06, extrémité claire ≥ 2:1 sur blanc, teinte
+  unique). Teinte de magnitude `#BC5C85`, à 4,19:1.
+- **Valeur en étiquette directe sur chaque barre**, pour rester lisible quand
+  la barre est très courte.
+
+Les moyennes se calculent sur les mois réellement couverts, et la moyenne de
+pages sur les seuls livres dont la pagination est connue — diviser par le
+total ferait chuter la moyenne à cause des livres non renseignés.
+
+### Jeu de démonstration
+
+```bash
+npx tsx scripts/donnees-demo.ts --creer      # 40 livres lus sur trois ans
+npx tsx scripts/donnees-demo.ts --supprimer  # ne retire que ceux-là
+npx tsx scripts/inspecter-lectures.ts        # repère les lectures en double
+```
+
 ## Genres et sous-genres
 
 16 genres, 112 sous-genres. Le **genre** pilote la couleur des tranches sur

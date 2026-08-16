@@ -165,6 +165,40 @@ export function IconeReglages({ actif, ...p }: Props) {
   );
 }
 
+export function IconeStats({ actif, ...p }: Props) {
+  return (
+    <Base actif={actif} {...p}>
+      <rect
+        x="3.5"
+        y="12"
+        width="4.2"
+        height="8"
+        rx="1.2"
+        fill={actif ? "currentColor" : "none"}
+        fillOpacity={actif ? 0.18 : 0}
+      />
+      <rect
+        x="9.9"
+        y="7.5"
+        width="4.2"
+        height="12.5"
+        rx="1.2"
+        fill={actif ? "currentColor" : "none"}
+        fillOpacity={actif ? 0.18 : 0}
+      />
+      <rect
+        x="16.3"
+        y="4"
+        width="4.2"
+        height="16"
+        rx="1.2"
+        fill={actif ? "currentColor" : "none"}
+        fillOpacity={actif ? 0.18 : 0}
+      />
+    </Base>
+  );
+}
+
 export function IconePlus(p: Props) {
   return (
     <Base {...p}>

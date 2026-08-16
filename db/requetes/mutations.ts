@@ -130,7 +130,24 @@ export async function changerStatut(
   }
 
   if (statut === "lu" || statut === "abandonne") {
-    const cible = ouverte;
+    // À défaut de lecture ouverte, on réutilise celle déjà close aujourd'hui.
+    //
+    // Sans ça, hésiter sur un statut — « lu », puis « à lire », puis « lu » —
+    // enregistre deux lectures du même livre le même jour, et le compteur de
+    // livres lus de l'année s'en trouve gonflé. Une vraie relecture bouclée
+    // dans la journée est un cas si rare qu'il vaut mieux la saisir à la main
+    // que d'accepter ce faux positif à chaque tâtonnement.
+    const [closeAujourdhui] = ouverte
+      ? []
+      : await db
+          .select()
+          .from(lectures)
+          .where(and(eq(lectures.livreId, id), eq(lectures.fin, aujourdhui)))
+          .orderBy(desc(lectures.id))
+          .limit(1);
+
+    const cible = ouverte ?? closeAujourdhui;
+
     if (cible) {
       await db
         .update(lectures)
