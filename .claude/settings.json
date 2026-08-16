@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($env:Path = [Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); npx tsc --noEmit; \"--- tsc exit=$LASTEXITCODE ---\")",
+      "PowerShell($env:Path = [Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); npx tsc --noEmit; \"--- tsc exit=$LASTEXITCODE ---\"; npx eslint . --max-warnings=0 2>&1 | Select-Object -First 20; \"--- eslint exit=$LASTEXITCODE ---\")",
+      "PowerShell(foreach \\($r in @\\(\"/\", \"/bibliotheque\", \"/bibliotheque/1\", \"/bibliotheque/ajouter\", \"/etagere\", \"/etagere?par=genre\", \"/etagere?par=annee\", \"/pal\", \"/series\", \"/citations\", \"/reglages\", \"/reglages/import\", \"/reglages/export\"\\)\\) { try { $x = Invoke-WebRequest -Uri \"http://localhost:3000$r\" -UseBasicParsing -TimeoutSec 180; \"{0,-26} {1}\" -f $r, $x.StatusCode } catch { \"{0,-26} ERREUR {1}\" -f $r, $_.Exception.Message } })",
+      "PowerShell($env:Path = [Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); npm run build 2>&1 | Select-Object -Last 60; \"exit=$LASTEXITCODE\")",
+      "PowerShell($env:Path = [Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); npm run dev)"
+    ]
+  }
+}

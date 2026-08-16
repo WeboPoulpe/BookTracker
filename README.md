@@ -51,11 +51,24 @@ Voir l'ordre de construction au §10 de la spécification.
 - [x] Ajout de livre (recherche Open Library + saisie manuelle)
 - [x] Bibliothèque, fiche livre, statuts
 - [x] Saisie de session et progression
-- [ ] Import Goodreads
-- [ ] Séries
-- [ ] PWA + hors ligne
-- [ ] Étagère + tableau de bord
-- [ ] Export
+- [x] Import Goodreads (aperçu, dédoublonnage, couvertures a posteriori)
+- [x] Séries — « tome N sur M », prochain tome à lire
+- [x] Étagère + tableau de bord
+- [x] PAL priorisée + « Choisis pour moi »
+- [x] Citations
+- [x] Export CSV Goodreads + JSON complet
+- [ ] PWA + hors ligne (Serwist, file de synchro Dexie)
+
+Écarts assumés par rapport à la spécification :
+
+- **PAL** — la repriorisation se fait par appui sur la colonne cible, pas par
+  glisser-déposer. Le geste tactile fiable demanderait `@dnd-kit` ; l'appui
+  fonctionne dès maintenant, y compris au lecteur d'écran.
+- **Authentification** — différée, faute d'identifiants Google. Point de
+  bascule isolé dans `lib/utilisateur.ts`.
+- **Saisie hors ligne** — les mutations passent déjà par des routes API
+  rejouables, mais la file Dexie n'est pas encore branchée : sans réseau,
+  l'enregistrement échoue au lieu d'être mis en attente.
 
 L'authentification Google est différée : l'app tourne en mono-utilisateur
 via `NEXT_PUBLIC_MODE_LOCAL`. Le point de bascule est isolé dans

@@ -10,33 +10,21 @@ import {
   type Statut,
 } from "@/db/schema";
 
+import {
+  DERNIERE_SESSION,
+  MINUTES_CUMULEES,
+  PAGE_ATTEINTE,
+} from "./expressions";
+
 /**
- * Page atteinte dans la lecture en cours (celle qui n'a pas de date de fin).
- *
- * Sous-requête corrélée plutôt qu'une jointure + GROUP BY : on veut une ligne
- * par livre même sans aucune session, et un GROUP BY sur 26 colonnes est
- * illisible autant qu'inutile.
+ * Sous-requêtes corrélées plutôt qu'une jointure + GROUP BY : on veut une
+ * ligne par livre même sans aucune session, et un GROUP BY sur 26 colonnes
+ * est illisible autant qu'inutile. Définies dans expressions.ts, où le choix
+ * du SQL explicite est justifié.
  */
-const pageAtteinte = sql<number | null>`(
-  select max(${sessions.pageAtteinte})
-  from ${sessions}
-  join ${lectures} on ${lectures.id} = ${sessions.lectureId}
-  where ${lectures.livreId} = ${livres.id} and ${lectures.fin} is null
-)`.as("page_atteinte");
-
-const minutesCumulees = sql<number | null>`(
-  select sum(${sessions.minutes})
-  from ${sessions}
-  join ${lectures} on ${lectures.id} = ${sessions.lectureId}
-  where ${lectures.livreId} = ${livres.id} and ${lectures.fin} is null
-)`.as("minutes_cumulees");
-
-const derniereSession = sql<string | null>`(
-  select max(${sessions.jour})
-  from ${sessions}
-  join ${lectures} on ${lectures.id} = ${sessions.lectureId}
-  where ${lectures.livreId} = ${livres.id}
-)`.as("derniere_session");
+const pageAtteinte = PAGE_ATTEINTE.as("page_atteinte");
+const minutesCumulees = MINUTES_CUMULEES.as("minutes_cumulees");
+const derniereSession = DERNIERE_SESSION.as("derniere_session");
 
 const CHAMPS_LISTE = {
   id: livres.id,

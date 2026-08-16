@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 
 import { rechercher } from "@/lib/openlibrary";
 
-export const runtime = "edge";
-
 export async function GET(requete: Request) {
   const q = new URL(requete.url).searchParams.get("q") ?? "";
 

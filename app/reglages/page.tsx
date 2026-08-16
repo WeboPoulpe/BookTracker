@@ -1,11 +1,98 @@
-import { EnTete } from "@/components/ui/EnTete";
+import Link from "next/link";
 
-export default function Reglages() {
+import { EnTete } from "@/components/ui/EnTete";
+import { compterParStatut } from "@/db/requetes/livres";
+import { nombre, pluriel } from "@/lib/format";
+import { MODE_LOCAL, utilisateurCourant } from "@/lib/utilisateur";
+
+export const dynamic = "force-dynamic";
+
+function Rangee({
+  href,
+  titre,
+  detail,
+}: {
+  href: string;
+  titre: string;
+  detail: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-3 active:bg-encre/4"
+    >
+      <span className="min-w-0">
+        <span className="block text-[15px]">{titre}</span>
+        <span className="block text-[13px] text-encre-45">{detail}</span>
+      </span>
+      <span aria-hidden="true" className="shrink-0 text-encre-20">
+        ›
+      </span>
+    </Link>
+  );
+}
+
+export default async function Reglages() {
+  const utilisateur = await utilisateurCourant();
+  const { total } = await compterParStatut(utilisateur?.id ?? "local");
+
   return (
     <>
-      <EnTete titre="Réglages" />
-      <div className="px-5 pb-8">
-        <p className="text-sm text-encre-45">Import, export et objectif annuel.</p>
+      <EnTete titre="Réglages" detail={utilisateur?.email ?? undefined} />
+
+      <div className="space-y-5 px-5 pt-2 pb-10">
+        <section>
+          <h2 className="mb-2 px-1 text-[13px] font-semibold tracking-wide text-encre-45 uppercase">
+            Mes données
+          </h2>
+          <div className="carte divide-y divide-bordure overflow-hidden">
+            <Rangee
+              href="/reglages/import"
+              titre="Importer depuis Goodreads"
+              detail="CSV, avec aperçu avant confirmation"
+            />
+            <Rangee
+              href="/reglages/export"
+              titre="Exporter"
+              detail={`CSV Goodreads ou JSON complet · ${pluriel(total, "livre")}`}
+            />
+          </div>
+        </section>
+
+        <section>
+          <h2 className="mb-2 px-1 text-[13px] font-semibold tracking-wide text-encre-45 uppercase">
+            Lecture
+          </h2>
+          <div className="carte overflow-hidden">
+            <div className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-3">
+              <span>
+                <span className="block text-[15px]">Objectif annuel</span>
+                <span className="block text-[13px] text-encre-45">
+                  Livres à lire cette année
+                </span>
+              </span>
+              <span className="chiffres text-[17px] font-semibold">
+                {nombre(utilisateur?.objectifAnnuel ?? 30)}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="mb-2 px-1 text-[13px] font-semibold tracking-wide text-encre-45 uppercase">
+            Compte
+          </h2>
+          <div className="carte px-4 py-3">
+            <p className="text-[15px]">
+              {MODE_LOCAL ? "Mode mono-utilisateur" : "Connecté"}
+            </p>
+            <p className="mt-1 text-[13px] leading-relaxed text-encre-45">
+              {MODE_LOCAL
+                ? "L'app tourne sur un compte local, sans connexion. Renseigne AUTH_GOOGLE_ID et AUTH_GOOGLE_SECRET pour activer la connexion Google."
+                : (utilisateur?.email ?? "—")}
+            </p>
+          </div>
+        </section>
       </div>
     </>
   );
