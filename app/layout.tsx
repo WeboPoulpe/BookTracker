@@ -41,6 +41,7 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   formatDetection: { telephone: false },
+  robots: { index: false, follow: false, nocache: true },
 };
 
 export const viewport: Viewport = {

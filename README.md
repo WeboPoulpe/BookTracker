@@ -65,8 +65,17 @@ Voir l'ordre de construction au §10 de la spécification.
 - **PAL** — la repriorisation se fait par appui sur la colonne cible, pas par
   glisser-déposer. Le geste tactile fiable demanderait `@dnd-kit` ; l'appui
   fonctionne dès maintenant, y compris au lecteur d'écran.
-- **Authentification** — différée, faute d'identifiants Google. Point de
-  bascule isolé dans `lib/utilisateur.ts`.
+- **Authentification — absente, et c'est un point à reprendre.** Avec
+  `NEXT_PUBLIC_MODE_LOCAL=true`, toute personne connaissant l'URL accède à la
+  bibliothèque **et peut la modifier** : `utilisateurCourantId()` renvoie
+  `"local"` pour n'importe quel visiteur. Décision assumée le temps de juger
+  le design sur mobile, à condition de ne pas diffuser l'URL. L'indexation
+  est bloquée (`app/robots.ts`), mais ce n'est pas une protection.
+
+  Pour une app mono-utilisateur, un mot de passe et un cookie signé
+  suffiraient : Google apporterait une identité dont personne n'a l'usage,
+  puisque tout le monde se connecte au même compte. Le point de bascule est
+  isolé dans `lib/utilisateur.ts`.
 - **Lecture hors ligne** — assurée par le cache du service worker, et c'est
   volontaire : pas de lecture Dexie-first, l'app tourne principalement en
   ligne. Les pages déjà visitées s'ouvrent sans réseau, une page jamais
