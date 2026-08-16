@@ -8,6 +8,8 @@ import { resoudreGenre } from "./genres";
  * formulaire que l'utilisateur peut corriger, et l'ajout manuel reste ouvert.
  */
 
+export type Source = "openlibrary" | "bnf";
+
 export type Resultat = {
   cle: string;
   titre: string;
@@ -17,9 +19,12 @@ export type Resultat = {
   pages: number | null;
   couvertureUrl: string | null;
   genre: string | null;
-  /** Série et tome extraits du titre quand Open Library les y a laissés */
+  /** Série et tome extraits du titre quand le catalogue les y a laissés */
   serie: string | null;
   tome: number | null;
+  source: Source;
+  /** Code MARC à trois lettres : « fre », « eng »… null si inconnu */
+  langue: string | null;
 };
 
 type ReponseOL = {
@@ -33,6 +38,7 @@ type ReponseOL = {
     cover_i?: number;
     number_of_pages_median?: number;
     subject?: string[];
+    language?: string[];
   }>;
 };
 
@@ -101,11 +107,20 @@ export async function rechercher(
   url.searchParams.set("limit", String(limite));
   url.searchParams.set(
     "fields",
-    "key,title,author_name,first_publish_year,isbn,cover_i,number_of_pages_median,subject",
+    "key,title,author_name,first_publish_year,isbn,cover_i,number_of_pages_median,subject,language",
   );
 
   const r = await fetch(url, {
-    headers: { "User-Agent": "MaBibliotheque/0.1 (suivi de lecture personnel)" },
+    // Pas de `signal` ici : combiné au cache de données de Next, il fait
+    // rester la requête en suspens. Le plafond de durée est appliqué par
+    // `avecDelai` dans lib/recherche.ts.
+    //
+    // Open Library demande un User-Agent identifiable avec un moyen de
+    // contact, et limite plus sévèrement ceux qui n'en ont pas.
+    headers: {
+      "User-Agent":
+        "MaBibliotheque/0.1 (suivi de lecture personnel; maxence@webomax.fr)",
+    },
     // Cache 24 h : les métadonnées d'un livre paru ne bougent pas
     next: { revalidate: 86_400 },
   });
@@ -132,6 +147,11 @@ export async function rechercher(
       genre: genreDepuisSujets(d.subject),
       serie,
       tome,
+      source: "openlibrary",
+      // Une notice réunit souvent plusieurs éditions : si le français figure
+      // parmi les langues, l'ouvrage existe en français, c'est ce qui compte
+      // pour le classement.
+      langue: d.language?.includes("fre") ? "fre" : (d.language?.[0] ?? null),
     };
   });
 }

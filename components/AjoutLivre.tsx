@@ -45,7 +45,8 @@ export function AjoutLivre() {
   const [requete, setRequete] = useState("");
   const [resultats, setResultats] = useState<Resultat[]>([]);
   const [cherche, setCherche] = useState(false);
-  const [indisponible, setIndisponible] = useState(false);
+  const [sources, setSources] = useState<Record<string, string> | null>(null);
+  const [toutesEnEchec, setToutesEnEchec] = useState(false);
 
   const [brouillon, setBrouillon] = useState<Brouillon | null>(null);
   const [envoi, setEnvoi] = useState(false);
@@ -74,9 +75,13 @@ export function AjoutLivre() {
         });
         const data = await r.json();
         setResultats(data.resultats ?? []);
-        setIndisponible(Boolean(data.indisponible));
+        setSources(data.sources ?? null);
+        setToutesEnEchec(Boolean(data.toutesEnEchec));
       } catch (e) {
-        if ((e as Error).name !== "AbortError") setIndisponible(true);
+        // Une requête annulée par la frappe suivante n'est pas une panne :
+        // laisser l'état d'échec ici afficherait une erreur à chaque lettre.
+        if ((e as Error).name === "AbortError") return;
+        setToutesEnEchec(true);
       } finally {
         setCherche(false);
       }
@@ -288,14 +293,44 @@ export function AjoutLivre() {
         />
       </div>
 
-      {indisponible ? (
-        <p className="mt-3 rounded-carte bg-[#FDF3E3] px-3.5 py-2.5 text-[13px] text-[#7A5310]">
-          Open Library ne répond pas. La saisie manuelle reste disponible.
+      {/* Les deux catalogues injoignables : c'est une panne, pas une absence.
+          On le dit franchement, et on pousse vers la saisie manuelle. */}
+      {toutesEnEchec && !cherche ? (
+        <div className="mt-3 rounded-carte bg-[#FDF3E3] px-4 py-3 text-[13px] leading-relaxed text-[#7A5310]">
+          Aucun des deux catalogues ne répond. Ce n&apos;est pas ta connexion —
+          réessaie plus tard, ou saisis le livre à la main, c&apos;est immédiat.
+        </div>
+      ) : null}
+
+      {/* Une seule source tombée : les résultats de l'autre s'affichent
+          quand même, on signale juste que la liste est partielle. */}
+      {!toutesEnEchec && !cherche && sources?.openlibrary === "echec" ? (
+        <p className="mt-3 text-[12px] text-encre-45">
+          Open Library ne répond pas — résultats de la BnF uniquement, sans
+          couverture ni pagination.
+        </p>
+      ) : null}
+      {!toutesEnEchec && !cherche && sources?.bnf === "echec" ? (
+        <p className="mt-3 text-[12px] text-encre-45">
+          La BnF ne répond pas — résultats d&apos;Open Library uniquement, dont
+          le catalogue français est incomplet.
         </p>
       ) : null}
 
       {cherche ? (
-        <p className="mt-4 text-[13px] text-encre-45">Recherche…</p>
+        <ul className="mt-4 space-y-3">
+          {/* Squelette plutôt qu'un « Recherche… » : on interroge deux
+              catalogues, l'attente peut atteindre quelques secondes. */}
+          {[0, 1, 2].map((i) => (
+            <li key={i} className="flex items-center gap-3">
+              <div className="squelette h-[66px] w-11 shrink-0 rounded-[8px]" />
+              <div className="flex-1 space-y-2">
+                <div className="squelette h-3.5 w-3/4 rounded-pilule" />
+                <div className="squelette h-3 w-1/2 rounded-pilule" />
+              </div>
+            </li>
+          ))}
+        </ul>
       ) : null}
 
       <ul className="mt-3 divide-y divide-bordure">
@@ -304,15 +339,15 @@ export function AjoutLivre() {
             <button
               type="button"
               onClick={() => choisir(r)}
-              className="flex w-full items-center gap-3 py-2.5 text-left active:bg-encre/4"
+              className="flex w-full items-center gap-3 py-3 text-left transition-colors active:bg-rose-voile"
             >
               <Couverture
                 titre={r.titre}
                 auteur={r.auteur}
                 url={r.couvertureUrl}
                 genre={r.genre}
-                className="h-[66px] w-11 shrink-0"
-                sizes="44px"
+                className="h-[68px] w-[46px] shrink-0"
+                sizes="46px"
               />
               <div className="min-w-0 flex-1">
                 <p className="font-lecture text-[15px] leading-snug line-clamp-2">
@@ -323,22 +358,40 @@ export function AjoutLivre() {
                   {r.annee ? ` · ${r.annee}` : ""}
                   {r.serie ? ` · ${r.serie}` : ""}
                 </p>
+                <p className="mt-1 flex items-center gap-1.5">
+                  <span className="rounded-pilule bg-rose-voile px-1.5 py-0.5 text-[10px] font-semibold text-rose-fonce ring-1 ring-rose-poudre">
+                    {r.source === "bnf" ? "BnF" : "Open Library"}
+                  </span>
+                  {r.pages ? (
+                    <span className="chiffres text-[10.5px] text-encre-45">
+                      {r.pages} p.
+                    </span>
+                  ) : (
+                    <span className="text-[10.5px] text-encre-45">
+                      pages à compléter
+                    </span>
+                  )}
+                </p>
               </div>
             </button>
           </li>
         ))}
       </ul>
 
-      {!cherche && requete.trim().length >= 2 && resultats.length === 0 ? (
-        <p className="mt-4 text-[13px] text-encre-45">
-          Aucun résultat. Le catalogue francophone d&apos;Open Library est
-          incomplet — la saisie manuelle est souvent la bonne réponse.
+      {!cherche &&
+      !toutesEnEchec &&
+      requete.trim().length >= 2 &&
+      resultats.length === 0 ? (
+        <p className="mt-4 text-[13px] leading-relaxed text-encre-45">
+          Aucun des deux catalogues ne connaît ce titre. C&apos;est fréquent
+          pour les parutions récentes et les petits éditeurs — la saisie
+          manuelle est la bonne réponse.
         </p>
       ) : null}
 
       <div className="mt-6 border-t border-bordure pt-4">
         <Bouton
-          variante="doux"
+          variante={resultats.length === 0 ? "principal" : "doux"}
           taille="lg"
           onClick={() => setBrouillon({ ...VIDE, titre: requete.trim() })}
         >

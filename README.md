@@ -109,6 +109,36 @@ Coût : Motion ajoute environ 48 ko au premier chargement. Acceptable pour une
 PWA que le service worker met en cache, mais c'est le premier endroit où
 regarder si le démarrage à froid devient long.
 
+## Recherche de livre
+
+Deux catalogues interrogés en parallèle, car aucun ne suffit seul :
+
+| | Open Library | BnF (API SRU) |
+|---|---|---|
+| Catalogue français | troué | dépôt légal complet |
+| Pagination | oui | non |
+| Couverture | oui | non |
+| Genre | oui | non |
+| Clé d'API | non | non |
+
+Les résultats sont fusionnés (ISBN, sinon titre + auteur normalisés) : une même
+édition prend le titre français de la BnF et la pagination d'Open Library.
+
+**Le classement part du rang d'origine de chaque source.** Trier sur la seule
+richesse des métadonnées remontait des livres sans rapport au motif qu'ils
+avaient une couverture — « Les sept petits musiciens » pour « les sept sœurs ».
+La langue et les métadonnées ne servent plus qu'à départager.
+
+**Pas de `signal` sur ces `fetch`.** Combiné au cache de données de Next
+(`next: { revalidate }`), un `AbortSignal` laisse la requête en suspens
+jusqu'à expiration : le garde-fou devient la panne. Le plafond de durée est
+appliqué par `avecDelai` dans `lib/recherche.ts`.
+
+> Note d'environnement : sur ce poste, `fetch` (undici) reçoit un `ECONNRESET`
+> d'`openlibrary.org` là où `node:https` et PowerShell passent — probablement
+> une inspection TLS locale. La BnF n'est pas affectée, et l'app fonctionne
+> quand même : c'est précisément ce que la double source garantit.
+
 ## Hors ligne
 
 L'app fonctionne **principalement en ligne**. Le hors ligne est un filet, pas
