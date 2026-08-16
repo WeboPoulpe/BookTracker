@@ -97,18 +97,23 @@ export function Tranche({
         />
       ) : null}
 
-      {/* Titre à la verticale, comme sur un vrai dos */}
-      <span
-        className="relative mb-3 px-1 font-lecture text-[10px] leading-[1.1] font-medium tracking-tight"
-        style={{
-          writingMode: "vertical-rl",
-          textOrientation: "mixed",
-          transform: "rotate(180deg)",
-          maxHeight: `${hauteur - 26}px`,
-          overflow: "hidden",
-        }}
-      >
-        {livre.titre}
+      {/* Titre à la verticale, comme sur un vrai dos.
+          Centré par positionnement absolu : dans un conteneur en
+          `justify-end`, l'écriture verticale ancrait le texte en haut de la
+          tranche au lieu de le centrer. */}
+      <span className="absolute inset-0 flex items-center justify-center px-1">
+        <span
+          className="font-lecture text-[12px] leading-[1.15] font-semibold"
+          style={{
+            writingMode: "vertical-rl",
+            textOrientation: "mixed",
+            transform: "rotate(180deg)",
+            maxHeight: `${hauteur - 20}px`,
+            overflow: "hidden",
+          }}
+        >
+          {livre.titre}
+        </span>
       </span>
     </LienAnime>
   );

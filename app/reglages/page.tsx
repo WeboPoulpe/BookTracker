@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { ObjectifAnnuel } from "@/components/ObjectifAnnuel";
+import { RecupCouvertures } from "@/components/RecupCouvertures";
 import { EnTete } from "@/components/ui/EnTete";
+import { compterSansCouverture } from "@/db/requetes/import";
 import { compterParStatut } from "@/db/requetes/livres";
 import { pluriel } from "@/lib/format";
 import { MODE_LOCAL, utilisateurCourant } from "@/lib/utilisateur";
@@ -35,7 +37,9 @@ function Rangee({
 
 export default async function Reglages() {
   const utilisateur = await utilisateurCourant();
-  const { total } = await compterParStatut(utilisateur?.id ?? "local");
+  const identifiant = utilisateur?.id ?? "local";
+  const { total } = await compterParStatut(identifiant);
+  const sansCouverture = await compterSansCouverture(identifiant);
 
   return (
     <>
@@ -62,6 +66,7 @@ export default async function Reglages() {
               titre="Exporter"
               detail={`CSV Goodreads ou JSON complet · ${pluriel(total, "livre")}`}
             />
+            <RecupCouvertures manquantes={sansCouverture} />
           </div>
 
           {/* Notice courte : les deux imports inquiètent pour la même raison

@@ -243,7 +243,6 @@ export function TableauDeBord({
                   >
                     <Couverture
                       titre={l.titre}
-                      auteur={l.auteur}
                       url={l.couvertureUrl}
                       genre={l.genre}
                       className="h-[82px] w-[56px] shrink-0"

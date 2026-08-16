@@ -18,13 +18,11 @@ import { envoyerCouverture, preparerCouverture } from "@/lib/image";
 export function CouvertureLivre({
   livreId,
   titre,
-  auteur,
   genre,
   url,
 }: {
   livreId: number;
   titre: string;
-  auteur: string;
   genre: string | null;
   url: string | null;
 }) {
@@ -91,7 +89,6 @@ export function CouvertureLivre({
         ) : (
           <Couverture
             titre={titre}
-            auteur={auteur}
             url={url}
             genre={genre}
             priorite

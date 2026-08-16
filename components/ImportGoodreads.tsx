@@ -107,13 +107,46 @@ export function ImportGoodreads() {
 
   async function recupererCouvertures() {
     setCouvertures("Recherche des couvertures…");
+
+    let trouves = 0;
+    let substituts = 0;
+    let examines = 0;
+    let restants = 0;
+    let curseur = 0;
+
     try {
-      const r = await fetch("/api/import", { method: "PATCH" });
-      const d = await r.json();
+      // Vagues enchaînées automatiquement : demander à l'utilisatrice de
+      // relancer autant de fois qu'il y a de lots, c'est lui faire faire le
+      // travail de la boucle.
+      for (let vague = 0; vague < 40; vague += 1) {
+        const r = await fetch(`/api/import?apres=${curseur}`, {
+          method: "PATCH",
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error("interrompu");
+        if (d.traites === 0) break;
+
+        trouves += d.trouves;
+        substituts += d.substituts ?? 0;
+        examines += d.traites;
+        restants = d.restants;
+        curseur = d.curseur;
+
+        setCouvertures(
+          `${pluriel(trouves, "couverture trouvée", "couvertures trouvées")} sur ${nombre(examines)} livres examinés…`,
+        );
+      }
+
       setCouvertures(
-        `${pluriel(d.trouves, "couverture trouvée", "couvertures trouvées")} sur ${nombre(d.traites)} essais. ${
-          d.restants > 0 ? `${nombre(d.restants)} livres encore sans couverture — relance pour continuer.` : "Terminé."
-        }`,
+        `${pluriel(trouves, "couverture trouvée", "couvertures trouvées")} sur ${nombre(examines)} livres examinés` +
+          (substituts > 0
+            ? `, ${nombre(substituts)} image(s) générique(s) écartée(s)`
+            : "") +
+          `. ${
+            restants > 0
+              ? `${nombre(restants)} livres restent sans image : les catalogues ne l'ont pas. Tu peux la choisir à la main sur la fiche.`
+              : "Terminé."
+          }`,
       );
       router.refresh();
     } catch {
@@ -162,9 +195,10 @@ export function ImportGoodreads() {
         <div className="mt-4 carte p-5">
           <p className="text-[15px] font-medium">Couvertures</p>
           <p className="mt-1 text-[13px] leading-relaxed text-encre-45">
-            Le CSV Goodreads n&apos;en contient aucune. On les récupère depuis
-            Open Library par vagues de 40, sans dépasser 10 requêtes par
-            seconde.
+            Aucun export n&apos;en contient. On les cherche par ISBN chez Open
+            Library puis Google Books, par vagues, en écartant les vignettes
+            génériques que ces catalogues servent quand ils ne connaissent pas
+            le livre.
           </p>
           {couvertures ? (
             <p className="mt-3 text-[13px] text-encre-70">{couvertures}</p>

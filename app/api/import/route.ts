@@ -66,11 +66,22 @@ export async function POST(requete: Request) {
   }
 }
 
-/** Complète les couvertures, par vagues, après l'import. */
-export async function PATCH() {
+/**
+ * Complète les couvertures, par vagues.
+ *
+ * Le client rappelle la route avec le `curseur` rendu par la vague
+ * précédente : une requête unique dépasserait la fenêtre d'exécution dès
+ * quelques dizaines de livres.
+ */
+export async function PATCH(requete: Request) {
   try {
     const utilisateurId = await utilisateurCourantId();
-    const r = await completerCouvertures(utilisateurId);
+    const brut = new URL(requete.url).searchParams.get("apres");
+    const apres = Number(brut);
+    const r = await completerCouvertures(
+      utilisateurId,
+      Number.isSafeInteger(apres) && apres > 0 ? apres : 0,
+    );
     return NextResponse.json(r);
   } catch (e) {
     console.error("PATCH /api/import", e);

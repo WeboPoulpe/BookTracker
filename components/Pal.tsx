@@ -115,7 +115,6 @@ export function Pal({ livres }: { livres: LivreListe[] }) {
                       <Link href={`/bibliotheque/${l.id}`} className="shrink-0">
                         <Couverture
                           titre={l.titre}
-                          auteur={l.auteur}
                           url={l.couvertureUrl}
                           genre={l.genre}
                           className="h-[62px] w-[42px]"
@@ -183,7 +182,6 @@ export function Pal({ livres }: { livres: LivreListe[] }) {
           <div className="flex gap-4 pt-1">
             <Couverture
               titre={tirage.titre}
-              auteur={tirage.auteur}
               url={tirage.couvertureUrl}
               genre={tirage.genre}
               className="h-[150px] w-[100px] shrink-0"

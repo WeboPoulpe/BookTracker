@@ -306,7 +306,9 @@ export function resoudreGenre(valeur?: string | null): Genre {
  * plaquette de 60 pages doit rester tapable (cible de 44 px, §7).
  */
 export function largeurTranche(pages?: number | null): number {
-  const MIN = 26;
+  // Plancher relevé pour que le titre vertical reste lisible : sous 30 px,
+  // une tranche de 12 px de corps devient un trait.
+  const MIN = 30;
   const MAX = 62;
   const REFERENCE = 320; // roman médian
   if (!pages || pages <= 0) return 34;

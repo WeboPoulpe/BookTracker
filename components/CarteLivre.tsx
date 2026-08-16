@@ -37,7 +37,6 @@ export function CarteLivre({
       <div className="relative">
         <Couverture
           titre={livre.titre}
-          auteur={livre.auteur}
           url={livre.couvertureUrl}
           genre={livre.genre}
           priorite={priorite}

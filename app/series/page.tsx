@@ -42,7 +42,6 @@ export default async function SeriesPage() {
                 <div className="flex gap-3.5 p-3.5">
                   <Couverture
                     titre={s.prochain?.titre ?? s.nom}
-                    auteur={s.auteur}
                     url={s.prochain?.couvertureUrl ?? null}
                     genre={s.prochain?.genre ?? s.genre}
                     className="h-[92px] w-[62px] shrink-0"

@@ -3,15 +3,15 @@ import Image from "next/image";
 import { resoudreGenre } from "@/lib/genres";
 
 /**
- * Couverture, avec repli sur une tranche générée.
+ * Couverture, avec repli coloré par le genre.
  *
- * Open Library est incomplet sur le catalogue francophone (§11) : une part
+ * Les catalogues sont incomplets sur le fonds francophone (§11) : une part
  * non négligeable de la bibliothèque n'aura jamais d'image. Le repli n'est
- * donc pas un cas d'erreur, c'est un état normal — il doit être beau.
+ * donc pas un cas d'erreur, c'est un état normal — il doit être beau, et
+ * muet : le titre et l'auteur sont toujours écrits juste à côté.
  */
 export function Couverture({
   titre,
-  auteur,
   url,
   genre,
   className = "",
@@ -19,7 +19,6 @@ export function Couverture({
   priorite = false,
 }: {
   titre: string;
-  auteur?: string | null;
   url?: string | null;
   genre?: string | null;
   className?: string;
@@ -48,15 +47,15 @@ export function Couverture({
           className="object-cover"
         />
       ) : (
-        <div className="flex h-full flex-col justify-between p-2.5">
-          <p className="font-lecture text-[11px] leading-tight font-medium line-clamp-4">
-            {titre}
-          </p>
-          {auteur ? (
-            <p className="text-[9px] leading-tight opacity-70 line-clamp-2">
-              {auteur}
-            </p>
-          ) : null}
+        /* Repli sans texte : le titre et l'auteur sont toujours écrits juste
+           à côté ou en dessous, et les répéter sur la vignette encombrait
+           sans rien apprendre. Restent la couleur du genre et un dos de
+           reliure, qui font lire « livre » plutôt que « case vide ». */
+        <div
+          aria-hidden="true"
+          className="flex h-full items-center justify-center"
+        >
+          <span className="h-2/5 w-px bg-current opacity-15" />
         </div>
       )}
 

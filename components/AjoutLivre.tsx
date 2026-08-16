@@ -227,7 +227,6 @@ export function AjoutLivre() {
 
         <ChoixCouverture
           titre={brouillon.titre}
-          auteur={brouillon.auteur}
           genre={brouillon.genre}
           urlActuelle={brouillon.couvertureUrl || null}
           onChoisie={setCouverture}
@@ -422,7 +421,6 @@ export function AjoutLivre() {
             >
               <Couverture
                 titre={r.titre}
-                auteur={r.auteur}
                 url={r.couvertureUrl}
                 genre={r.genre}
                 className="h-[68px] w-[46px] shrink-0"

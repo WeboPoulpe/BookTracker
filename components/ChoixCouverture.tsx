@@ -16,14 +16,12 @@ import { preparerCouverture, type CouverturePreparee } from "@/lib/image";
  */
 export function ChoixCouverture({
   titre,
-  auteur,
   genre,
   urlActuelle,
   onChoisie,
   onRetiree,
 }: {
   titre: string;
-  auteur?: string | null;
   genre?: string | null;
   urlActuelle: string | null;
   /** Reçoit l'image compressée ; l'envoi est décidé par le parent */
@@ -93,7 +91,6 @@ export function ChoixCouverture({
           ) : (
             <Couverture
               titre={titre || "Sans titre"}
-              auteur={auteur}
               url={urlActuelle}
               genre={genre}
               className="h-32 w-[86px]"

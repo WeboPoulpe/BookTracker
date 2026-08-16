@@ -30,7 +30,9 @@ const strategies: RuntimeCaching[] = [
     // Les couvertures ne changent jamais. Une fois en cache, on ne
     // redemande plus rien au réseau — c'est ce qui rend la bibliothèque
     // consultable en mode avion sans écrans gris.
-    matcher: ({ url }) => url.hostname === "covers.openlibrary.org",
+    matcher: ({ url }) =>
+      url.hostname === "covers.openlibrary.org" ||
+      url.hostname === "books.google.com",
     handler: new CacheFirst({
       cacheName: "couvertures",
       plugins: [

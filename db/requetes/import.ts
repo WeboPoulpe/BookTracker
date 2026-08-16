@@ -2,6 +2,7 @@ import { and, eq, isNotNull, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { lectures, livres } from "@/db/schema";
+import { resoudreCouvertures } from "@/lib/couvertures";
 import type { LivreImporte } from "@/lib/goodreads";
 import { memeTitre, normaliser } from "@/lib/texte";
 
@@ -317,15 +318,55 @@ export async function importerLot(
 }
 
 /**
- * Complète les couvertures manquantes depuis Open Library.
+ * Livres illustrables encore sans image.
  *
- * Le CSV n'en contient aucune. On plafonne le débit (§6 : 10 req/s) pour ne
- * pas se faire couper par Open Library au milieu d'une bibliothèque.
+ * Compte uniquement ceux qui ont un ISBN : les autres ne sont pas
+ * « manquants » mais hors d'atteinte, et les annoncer comme récupérables
+ * promettrait un résultat que la recherche par ISBN ne peut pas tenir.
+ */
+export async function compterSansCouverture(
+  utilisateurId: string,
+): Promise<number> {
+  const [ligne] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(livres)
+    .where(
+      and(
+        eq(livres.utilisateurId, utilisateurId),
+        isNotNull(livres.isbn13),
+        sql`${livres.couvertureUrl} is null`,
+      ),
+    );
+  return ligne?.total ?? 0;
+}
+
+/**
+ * Complète les couvertures manquantes, par vagues.
+ *
+ * Aucun CSV n'en contient : ni Goodreads, ni StoryGraph, ni Bookmory. Elles
+ * se récupèrent donc par ISBN, en écartant les images de remplacement que
+ * les catalogues servent en HTTP 200 quand ils ne connaissent pas le livre
+ * (voir lib/couvertures.ts).
  */
 export async function completerCouvertures(
   utilisateurId: string,
-  limite = 40,
-): Promise<{ traites: number; trouves: number; restants: number }> {
+  /**
+   * Curseur : ne traite que les livres d'identifiant supérieur.
+   *
+   * Sans lui, chaque vague repartirait du début et rejouerait les livres que
+   * la précédente n'a pas su illustrer — la deuxième vague n'avancerait donc
+   * jamais jusqu'au bout de la bibliothèque.
+   */
+  apresId = 0,
+  limite = 25,
+): Promise<{
+  traites: number;
+  trouves: number;
+  substituts: number;
+  restants: number;
+  /** Dernier identifiant examiné, à repasser tel quel à la vague suivante */
+  curseur: number;
+}> {
   const candidats = await db
     .select({ id: livres.id, isbn13: livres.isbn13 })
     .from(livres)
@@ -334,30 +375,25 @@ export async function completerCouvertures(
         eq(livres.utilisateurId, utilisateurId),
         isNotNull(livres.isbn13),
         sql`${livres.couvertureUrl} is null`,
+        sql`${livres.id} > ${apresId}`,
       ),
     )
+    .orderBy(livres.id)
     .limit(limite);
 
-  let trouves = 0;
+  const { trouvees, substituts } = await resoudreCouvertures(
+    candidats.map((c) => c.isbn13!).filter(Boolean),
+  );
+
+  const parIsbn = new Map(trouvees.map((c) => [c.isbn13, c.url]));
 
   for (const c of candidats) {
-    const url = `https://covers.openlibrary.org/b/isbn/${c.isbn13}-M.jpg`;
-    try {
-      // `default=false` : sans ça, Open Library renvoie une image « pas de
-      // couverture » en 200, et on enregistrerait un placeholder gris.
-      const r = await fetch(`${url}?default=false`, { method: "HEAD" });
-      if (r.ok) {
-        await db
-          .update(livres)
-          .set({ couvertureUrl: url })
-          .where(eq(livres.id, c.id));
-        trouves += 1;
-      }
-    } catch {
-      // Une couverture absente n'est pas un échec d'import : le repli
-      // graphique (§7) est prévu pour ça.
-    }
-    await new Promise((r) => setTimeout(r, 100)); // 10 req/s
+    const url = c.isbn13 ? parIsbn.get(c.isbn13) : undefined;
+    if (!url) continue;
+    await db
+      .update(livres)
+      .set({ couvertureUrl: url })
+      .where(eq(livres.id, c.id));
   }
 
   const [{ restants }] = await db
@@ -371,5 +407,11 @@ export async function completerCouvertures(
       ),
     );
 
-  return { traites: candidats.length, trouves, restants };
+  return {
+    traites: candidats.length,
+    trouves: trouvees.length,
+    substituts,
+    restants,
+    curseur: candidats.length ? candidats[candidats.length - 1].id : apresId,
+  };
 }

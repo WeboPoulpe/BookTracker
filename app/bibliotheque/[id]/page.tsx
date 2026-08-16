@@ -72,7 +72,6 @@ export default async function FicheLivre({
           <CouvertureLivre
             livreId={livre.id}
             titre={livre.titre}
-            auteur={livre.auteur}
             genre={livre.genre}
             url={livre.couvertureUrl}
           />
