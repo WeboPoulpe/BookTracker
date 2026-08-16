@@ -139,6 +139,25 @@ appliqué par `avecDelai` dans `lib/recherche.ts`.
 > une inspection TLS locale. La BnF n'est pas affectée, et l'app fonctionne
 > quand même : c'est précisément ce que la double source garantit.
 
+## Fiche livre
+
+Tout y est modifiable et supprimable : métadonnées, note, sessions, lectures,
+citations, et le livre lui-même.
+
+- **`synopsis` et `resume` sont deux champs distincts.** Le premier est la
+  quatrième de couverture, le second le rappel personnel de l'intrigue —
+  indispensable sur une saga, où deux ans séparent parfois deux tomes et où
+  la quatrième de couverture ne rappelle jamais où l'on s'est arrêté.
+- **Le statut ne s'édite pas dans le formulaire de métadonnées** : il ouvre ou
+  clôt une lecture. Il reste sur les pastilles de la fiche.
+- **Les suppressions ne passent pas par la file hors ligne.** Rejouer une
+  suppression sur des identifiants devenus obsolètes ferait plus de dégâts
+  que d'attendre le réseau, et effacer une session est rare et sans urgence.
+- **Les données partagées entre serveur et client vivent dans `lib/`.** Une
+  constante exportée d'un module `"use client"` arrive dans un composant
+  serveur sous forme de référence, pas de valeur : `AXES.map` y échoue avec
+  « is not a function ». D'où `lib/notation.ts`.
+
 ## Couvertures importées
 
 Les deux catalogues laissent beaucoup de livres sans image, et le CSV

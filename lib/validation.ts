@@ -43,6 +43,8 @@ export const schemaLivre = z.object({
   axeEmotion: optionnel(z.coerce.number().int().min(0).max(5)),
   axeNoirceur: optionnel(z.coerce.number().int().min(0).max(5)),
   axeRomance: optionnel(z.coerce.number().int().min(0).max(5)),
+  synopsis: optionnel(z.string().trim().max(8_000)),
+  resume: optionnel(z.string().trim().max(20_000)),
   avis: optionnel(z.string().trim().max(10_000)),
   humeur: optionnel(z.string().trim().max(60)),
   emoji: optionnel(z.string().trim().max(8)),

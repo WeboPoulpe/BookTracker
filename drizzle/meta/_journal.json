@@ -15,6 +15,13 @@
       "when": 1786903098578,
       "tag": "0001_married_firestar",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786905881984,
+      "tag": "0002_slow_justin_hammer",
+      "breakpoints": true
     }
   ]
 }

@@ -2,20 +2,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActionsLivre } from "@/components/ActionsLivre";
+import { CitationsLivre } from "@/components/CitationsLivre";
 import { CouvertureLivre } from "@/components/CouvertureLivre";
+import { JournalLivre, LecturesLivre } from "@/components/JournalLivre";
+import { TexteDepliable } from "@/components/TexteDepliable";
 import { Section } from "@/components/ui/EnTete";
 import { IconeRetour } from "@/components/ui/Icones";
 import { livreParId } from "@/db/requetes/livres";
-import {
-  dateCourte,
-  depuis,
-  duree,
-  libelleTome,
-  nombre,
-  pourcent,
-  progression,
-} from "@/lib/format";
+import { duree, libelleTome, nombre, pourcent, progression } from "@/lib/format";
 import { resoudreGenre } from "@/lib/genres";
+import { AXES } from "@/lib/notation";
 import { utilisateurCourantId } from "@/lib/utilisateur";
 
 export const dynamic = "force-dynamic";
@@ -38,12 +34,10 @@ export default async function FicheLivre({
   const tome = libelleTome(livre.tome);
   const genre = resoudreGenre(livre.genre);
 
-  const axes = [
-    { cle: "Intensité", valeur: livre.axeIntensite },
-    { cle: "Émotion", valeur: livre.axeEmotion },
-    { cle: "Noirceur", valeur: livre.axeNoirceur },
-    { cle: "Romance", valeur: livre.axeRomance },
-  ].filter((a) => a.valeur != null);
+  const axes = AXES.map((a) => ({
+    libelle: a.libelle,
+    valeur: livre[a.cle],
+  })).filter((a) => a.valeur != null);
 
   return (
     <div className="pb-8">
@@ -68,7 +62,7 @@ export default async function FicheLivre({
       <div className="relative px-5 pt-1">
         <div
           aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-40 -z-10 opacity-45 blur-2xl"
+          className="absolute inset-x-0 top-0 -z-10 h-40 opacity-45 blur-2xl"
           style={{
             background: `radial-gradient(ellipse at 30% 0%, ${genre.couleur} 0%, transparent 70%)`,
           }}
@@ -90,11 +84,14 @@ export default async function FicheLivre({
             <p className="mt-1.5 text-[14px] text-encre-70">{livre.auteur}</p>
 
             {livre.serieNom ? (
-              <p className="mt-2 inline-block rounded-pilule bg-white/80 px-2.5 py-1 text-[12px] font-medium text-rose-encre ring-1 ring-rose-poudre">
+              <Link
+                href="/series"
+                className="mt-2 inline-block rounded-pilule bg-white/80 px-2.5 py-1 text-[12px] font-medium text-rose-encre ring-1 ring-rose-poudre"
+              >
                 {livre.serieNom}
                 {tome ? ` · ${tome}` : ""}
                 {livre.serieTomesTotal ? ` / ${livre.serieTomesTotal}` : ""}
-              </p>
+              </Link>
             ) : null}
 
             <p className="chiffres mt-2.5 text-[12.5px] text-encre-45">
@@ -104,7 +101,7 @@ export default async function FicheLivre({
                 livre.genre,
               ]
                 .filter(Boolean)
-                .join(" · ") || "—"}
+                .join(" · ") || "Métadonnées à compléter"}
             </p>
 
             {livre.note != null ? (
@@ -114,6 +111,13 @@ export default async function FicheLivre({
                 <span className="chiffres ml-1.5 text-[12.5px] text-encre-45">
                   {livre.note.toLocaleString("fr-FR")}/5
                 </span>
+              </p>
+            ) : null}
+
+            {livre.humeur ? (
+              <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-pilule bg-rose-poudre px-2.5 py-1 text-[12px] font-medium text-rose-encre">
+                <span aria-hidden="true">{livre.emoji}</span>
+                {livre.humeur}
               </p>
             ) : null}
           </div>
@@ -140,13 +144,25 @@ export default async function FicheLivre({
       </div>
 
       <div className="mt-8 space-y-7 px-5">
+        {livre.synopsis ? (
+          <Section titre="Synopsis">
+            <TexteDepliable texte={livre.synopsis} />
+          </Section>
+        ) : null}
+
+        {livre.resume ? (
+          <Section titre="Résumé de l'intrigue">
+            <TexteDepliable texte={livre.resume} lignes={4} />
+          </Section>
+        ) : null}
+
         {axes.length ? (
           <Section titre="Ressenti">
             <dl className="space-y-3 rounded-carte bg-white/85 p-4 shadow-carte ring-1 ring-white/70 backdrop-blur-sm">
               {axes.map((a) => (
-                <div key={a.cle} className="flex items-center gap-3">
+                <div key={a.libelle} className="flex items-center gap-3">
                   <dt className="w-20 shrink-0 text-[13px] text-encre-70">
-                    {a.cle}
+                    {a.libelle}
                   </dt>
                   <dd className="flex flex-1 gap-1">
                     {Array.from({ length: 5 }, (_, i) => (
@@ -166,78 +182,23 @@ export default async function FicheLivre({
 
         {livre.avis ? (
           <Section titre="Mon avis">
-            <p className="rounded-carte bg-white/85 p-4 font-lecture text-[15.5px] leading-relaxed whitespace-pre-line shadow-carte ring-1 ring-white/70 backdrop-blur-sm">
-              {livre.avis}
-            </p>
+            <TexteDepliable texte={livre.avis} lignes={4} />
           </Section>
         ) : null}
 
         <Section titre="Journal">
-          {journal.length === 0 ? (
-            <p className="text-[14px] text-encre-45">
-              Aucune session enregistrée.
-            </p>
-          ) : (
-            <ul className="divide-y divide-bordure rounded-carte bg-white/85 px-4 shadow-carte ring-1 ring-white/70 backdrop-blur-sm">
-              {journal.slice(0, 30).map((s) => (
-                <li key={s.id} className="flex items-baseline gap-3 py-3">
-                  <span className="chiffres w-14 shrink-0 text-[12.5px] text-encre-45">
-                    {dateCourte(s.jour)}
-                  </span>
-                  <span className="chiffres flex-1 text-[14px] font-medium">
-                    {s.pageAtteinte != null
-                      ? `page ${nombre(s.pageAtteinte)}`
-                      : null}
-                    {s.pageAtteinte != null && s.minutes != null ? " · " : null}
-                    {s.minutes != null ? duree(s.minutes) : null}
-                  </span>
-                  {s.noteRapide ? (
-                    <span className="max-w-[45%] truncate text-[12.5px] text-encre-45 italic">
-                      {s.noteRapide}
-                    </span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
+          <JournalLivre sessions={journal} />
         </Section>
 
         {historique.length > 0 ? (
           <Section titre="Lectures">
-            <ul className="space-y-1.5">
-              {historique.map((l, i) => (
-                <li key={l.id} className="chiffres text-[13px] text-encre-70">
-                  {historique.length > 1
-                    ? `${historique.length - i}${historique.length - i === 1 ? "re" : "e"} lecture · `
-                    : ""}
-                  {dateCourte(l.debut)} → {l.fin ? dateCourte(l.fin) : "en cours"}
-                  {l.abandonnee ? " · abandonnée" : ""}
-                </li>
-              ))}
-            </ul>
+            <LecturesLivre lectures={historique} />
           </Section>
         ) : null}
 
-        {extraits.length > 0 ? (
-          <Section titre="Citations">
-            <ul className="space-y-3">
-              {extraits.map((c) => (
-                <li
-                  key={c.id}
-                  className="rounded-carte bg-white/85 p-4 shadow-carte ring-1 ring-white/70 backdrop-blur-sm"
-                >
-                  <blockquote className="border-l-2 border-dragee pl-3.5 font-lecture text-[15.5px] leading-relaxed">
-                    {c.texte}
-                  </blockquote>
-                  <p className="chiffres mt-2 text-[12px] text-encre-45">
-                    {c.page ? `page ${c.page} · ` : ""}
-                    {depuis(c.creeLe)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </Section>
-        ) : null}
+        <Section titre="Citations">
+          <CitationsLivre livreId={livre.id} citations={extraits} />
+        </Section>
       </div>
     </div>
   );

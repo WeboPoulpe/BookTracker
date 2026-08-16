@@ -126,7 +126,21 @@ export async function compterParStatut(utilisateurId: string) {
 /** Fiche complète : le livre, sa série, son historique et ses citations. */
 export async function livreParId(utilisateurId: string, id: number) {
   const [livre] = await db
-    .select({ ...CHAMPS_LISTE, avis: livres.avis, prix: livres.prix, dateSortie: livres.dateSortie, axeIntensite: livres.axeIntensite, axeEmotion: livres.axeEmotion, axeNoirceur: livres.axeNoirceur, axeRomance: livres.axeRomance })
+    .select({
+      ...CHAMPS_LISTE,
+      synopsis: livres.synopsis,
+      resume: livres.resume,
+      avis: livres.avis,
+      prix: livres.prix,
+      dateSortie: livres.dateSortie,
+      dureeMinutes: livres.dureeMinutes,
+      sousGenre: livres.sousGenre,
+      isbn13: livres.isbn13,
+      axeIntensite: livres.axeIntensite,
+      axeEmotion: livres.axeEmotion,
+      axeNoirceur: livres.axeNoirceur,
+      axeRomance: livres.axeRomance,
+    })
     .from(livres)
     .leftJoin(series, eq(series.id, livres.serieId))
     .where(and(eq(livres.id, id), eq(livres.utilisateurId, utilisateurId)))

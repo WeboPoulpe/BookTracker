@@ -89,6 +89,14 @@ export const livres = pgTable(
     axeNoirceur: smallint("axe_noirceur"),
     axeRomance: smallint("axe_romance"),
 
+    /** Quatrième de couverture — vient du catalogue ou de la saisie */
+    synopsis: text("synopsis"),
+    /**
+     * Résumé personnel de l'intrigue, distinct du synopsis.
+     * Indispensable sur une saga : deux ans séparent parfois deux tomes, et
+     * la quatrième de couverture ne rappelle jamais où l'on s'est arrêté.
+     */
+    resume: text("resume"),
     avis: text("avis"),
     humeur: text("humeur"),
     emoji: text("emoji"),

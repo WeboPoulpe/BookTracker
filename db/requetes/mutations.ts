@@ -244,6 +244,107 @@ export async function supprimerLivre(utilisateurId: string, id: number) {
   return supprime ?? null;
 }
 
+/**
+ * Vérifie qu'une session appartient bien à l'utilisateur.
+ *
+ * Une session ne porte pas d'identifiant d'utilisateur : elle pend à une
+ * lecture, qui pend à un livre. Sans cette remontée, n'importe quel
+ * identifiant de session serait supprimable par n'importe qui.
+ */
+async function sessionPossedee(utilisateurId: string, sessionId: number) {
+  const [ligne] = await db
+    .select({ id: sessions.id, lectureId: sessions.lectureId })
+    .from(sessions)
+    .innerJoin(lectures, eq(lectures.id, sessions.lectureId))
+    .innerJoin(livres, eq(livres.id, lectures.livreId))
+    .where(
+      and(eq(sessions.id, sessionId), eq(livres.utilisateurId, utilisateurId)),
+    )
+    .limit(1);
+  return ligne ?? null;
+}
+
+export async function supprimerSession(utilisateurId: string, id: number) {
+  const possedee = await sessionPossedee(utilisateurId, id);
+  if (!possedee) return null;
+
+  await db.delete(sessions).where(eq(sessions.id, id));
+  return { id };
+}
+
+export async function majSession(
+  utilisateurId: string,
+  id: number,
+  valeurs: {
+    jour?: string;
+    pageAtteinte?: number | null;
+    minutes?: number | null;
+    noteRapide?: string | null;
+  },
+) {
+  const possedee = await sessionPossedee(utilisateurId, id);
+  if (!possedee) return null;
+
+  const [maj] = await db
+    .update(sessions)
+    .set(valeurs)
+    .where(eq(sessions.id, id))
+    .returning();
+  return maj ?? null;
+}
+
+export async function supprimerLecture(utilisateurId: string, id: number) {
+  const [ligne] = await db
+    .select({ id: lectures.id })
+    .from(lectures)
+    .innerJoin(livres, eq(livres.id, lectures.livreId))
+    .where(and(eq(lectures.id, id), eq(livres.utilisateurId, utilisateurId)))
+    .limit(1);
+
+  if (!ligne) return null;
+
+  // Les sessions partent en cascade : supprimer une lecture, c'est effacer
+  // la période entière, pas la détacher de son journal.
+  await db.delete(lectures).where(eq(lectures.id, id));
+  return { id };
+}
+
+export async function supprimerCitation(utilisateurId: string, id: number) {
+  const [ligne] = await db
+    .select({ id: citations.id })
+    .from(citations)
+    .innerJoin(livres, eq(livres.id, citations.livreId))
+    .where(and(eq(citations.id, id), eq(livres.utilisateurId, utilisateurId)))
+    .limit(1);
+
+  if (!ligne) return null;
+
+  await db.delete(citations).where(eq(citations.id, id));
+  return { id };
+}
+
+export async function majCitation(
+  utilisateurId: string,
+  id: number,
+  valeurs: { texte?: string; page?: number | null },
+) {
+  const [ligne] = await db
+    .select({ id: citations.id })
+    .from(citations)
+    .innerJoin(livres, eq(livres.id, citations.livreId))
+    .where(and(eq(citations.id, id), eq(livres.utilisateurId, utilisateurId)))
+    .limit(1);
+
+  if (!ligne) return null;
+
+  const [maj] = await db
+    .update(citations)
+    .set(valeurs)
+    .where(eq(citations.id, id))
+    .returning();
+  return maj ?? null;
+}
+
 export async function ajouterCitation(
   utilisateurId: string,
   entree: { livreId: number; texte: string; page?: number | null },
