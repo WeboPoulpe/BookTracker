@@ -19,13 +19,13 @@ function Rangee({
   return (
     <Link
       href={href}
-      className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-3 active:bg-encre/4"
+      className="flex min-h-[60px] items-center justify-between gap-3 px-4 py-3 transition-colors active:bg-rose-voile"
     >
       <span className="min-w-0">
-        <span className="block text-[15px]">{titre}</span>
-        <span className="block text-[13px] text-encre-45">{detail}</span>
+        <span className="block text-[15px] font-medium">{titre}</span>
+        <span className="block text-[12.5px] text-encre-45">{detail}</span>
       </span>
-      <span aria-hidden="true" className="shrink-0 text-encre-20">
+      <span aria-hidden="true" className="shrink-0 text-[18px] text-rose-fonce">
         ›
       </span>
     </Link>

@@ -30,7 +30,7 @@ export function Couverture({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-[6px] rounded-l-[3px] shadow-carte ${className}`}
+      className={`relative overflow-hidden rounded-[10px] rounded-l-[4px] shadow-carte ${className}`}
       style={{ backgroundColor: g.couleur, color: g.encre }}
     >
       {url ? (
@@ -60,6 +60,11 @@ export function Couverture({
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-y-0 left-0 w-[9%] bg-gradient-to-r from-black/22 via-black/6 to-transparent"
+      />
+      {/* Reflet diagonal — la lumière rasante sur un papier glacé */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/18 via-transparent to-black/8"
       />
     </div>
   );

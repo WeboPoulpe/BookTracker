@@ -1,8 +1,14 @@
+"use client";
+
+import { motion } from "motion/react";
 import Link from "next/link";
 
 import type { LivreListe } from "@/db/requetes/livres";
+import { RESSORT } from "@/lib/anim";
 import { progression } from "@/lib/format";
 import { largeurTranche, resoudreGenre } from "@/lib/genres";
+
+const LienAnime = motion.create(Link);
 
 /**
  * Une tranche de livre, vue de face sur l'étagère.
@@ -39,27 +45,33 @@ export function Tranche({
   const cinqEtoiles = livre.note != null && livre.note >= 5;
 
   return (
-    <Link
+    <LienAnime
       href={`/bibliotheque/${livre.id}`}
       title={`${livre.titre} — ${livre.auteur}`}
-      className="tranche-animee group relative flex shrink-0 scroll-ml-5 flex-col justify-end overflow-hidden rounded-t-[3px] transition-transform duration-150 active:scale-[0.96]"
+      // La tranche se pose depuis le bas, comme un livre qu'on range.
+      initial={{ opacity: 0, y: 26, rotateZ: -4 }}
+      animate={{ opacity: 1, y: 0, rotateZ: 0 }}
+      // 38 ms entre chaque tranche, plafonnés : la 80ᵉ ne doit pas arriver
+      // trois secondes après la première.
+      transition={{ ...RESSORT, delay: Math.min(rang * 0.038, 0.9) }}
+      whileTap={{ scale: 0.94, y: -6 }}
+      className="relative flex shrink-0 scroll-ml-5 flex-col justify-end overflow-hidden rounded-t-[4px] origin-bottom"
       style={{
         width: `${largeur}px`,
         height: `${hauteur}px`,
         backgroundColor: g.couleur,
         color: g.encre,
-        // 40 ms entre chaque tranche : la cascade du §7. Plafonnée, sinon la
-        // 80ᵉ tranche arriverait trois secondes après la première.
-        animationDelay: `${Math.min(rang * 40, 900)}ms`,
         scrollSnapAlign: "start",
       }}
     >
       {/* Remplissage : la part déjà lue, depuis le bas */}
       {avance !== null ? (
-        <span
+        <motion.span
           aria-hidden="true"
           className="absolute inset-x-0 bottom-0 bg-black/12"
-          style={{ height: `${Math.round(avance * 100)}%` }}
+          initial={{ height: 0 }}
+          animate={{ height: `${Math.round(avance * 100)}%` }}
+          transition={{ ...RESSORT, delay: Math.min(rang * 0.038, 0.9) + 0.2 }}
         />
       ) : null}
 
@@ -72,9 +84,10 @@ export function Tranche({
         aria-hidden="true"
         className="absolute inset-x-0 bottom-[14%] h-px bg-black/12"
       />
+      {/* Reflet vertical : donne du galbe au dos */}
       <span
         aria-hidden="true"
-        className="absolute inset-y-0 left-0 w-[2px] bg-black/14"
+        className="absolute inset-y-0 left-0 w-full bg-gradient-to-r from-black/16 via-transparent to-white/12"
       />
 
       {cinqEtoiles ? (
@@ -97,6 +110,6 @@ export function Tranche({
       >
         {livre.titre}
       </span>
-    </Link>
+    </LienAnime>
   );
 }

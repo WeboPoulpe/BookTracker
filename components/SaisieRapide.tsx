@@ -1,9 +1,13 @@
 "use client";
 
+import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { RESSORT, TOUCHER } from "@/lib/anim";
+
 import { Bouton } from "@/components/ui/Bouton";
+import { Celebration } from "@/components/ui/Celebration";
 import { Feuille } from "@/components/ui/Feuille";
 import { Segments } from "@/components/ui/Champ";
 import { envoyer } from "@/lib/client-api";
@@ -44,6 +48,7 @@ export function SaisieRapide({
   const [note, setNote] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [fete, setFete] = useState(false);
 
   // Réinitialisation à chaque ouverture : une feuille qui rouvre avec la
   // saisie précédente fait douter de ce qui a été enregistré.
@@ -94,10 +99,28 @@ export function SaisieRapide({
     // Faire autrement obligerait à réfléchir au réseau au moment précis où
     // l'app promet un geste de moins de cinq secondes.
     onFermer();
+
+    // Le serveur clôt aussi la lecture quand la dernière page est atteinte,
+    // sans que l'utilisateur ait touché « Terminé » : on lit sa réponse
+    // plutôt que notre propre intention.
+    const acheve =
+      termine ||
+      (r.statut === "ok" &&
+        typeof r.data === "object" &&
+        r.data !== null &&
+        (r.data as { termine?: boolean }).termine === true);
+
+    if (acheve) setFete(true);
     if (r.statut === "ok") router.refresh();
   }
 
   return (
+    <>
+    <Celebration
+      active={fete}
+      titre={livre.titre}
+      onFini={() => setFete(false)}
+    />
     <Feuille
       ouverte={ouverte}
       onFermer={onFermer}
@@ -105,11 +128,11 @@ export function SaisieRapide({
       pied={
         <div className="flex gap-2">
           <Bouton
-            variante="fantome"
+            variante="doux"
             onClick={() => enregistrer(true)}
             disabled={envoi}
           >
-            Terminé
+            J&apos;ai fini
           </Bouton>
           <Bouton
             className="flex-1"
@@ -156,29 +179,32 @@ export function SaisieRapide({
           </div>
 
           {avance !== null ? (
-            <div className="mt-3">
-              <div className="h-2 overflow-hidden rounded-pilule bg-bordure">
-                <div
-                  className="h-full rounded-pilule bg-sauge transition-[width] duration-300"
-                  style={{ width: `${Math.round(avance * 100)}%` }}
+            <div className="mt-4">
+              <div className="h-2.5 overflow-hidden rounded-pilule bg-rose-poudre">
+                <motion.div
+                  className="degrade-dragee h-full rounded-pilule"
+                  animate={{ width: `${Math.round(avance * 100)}%` }}
+                  transition={RESSORT}
                 />
               </div>
-              <p className="chiffres mt-1.5 text-center text-[13px] text-encre-45">
+              <p className="chiffres mt-2 text-center text-[13px] font-semibold text-rose-fonce">
                 {pourcent(avance)}
               </p>
             </div>
           ) : null}
 
-          <div className="mt-4 grid grid-cols-4 gap-2">
+          <div className="mt-5 grid grid-cols-4 gap-2">
             {[5, 10, 25, 50].map((n) => (
-              <button
+              <motion.button
                 key={n}
                 type="button"
                 onClick={() => decale(n)}
-                className="chiffres min-h-[44px] rounded-carte bg-papier-doux text-[15px] font-medium text-encre-70 active:scale-95 active:bg-encre/5"
+                whileTap={TOUCHER}
+                transition={RESSORT}
+                className="chiffres min-h-[46px] rounded-tuile bg-rose-voile text-[15px] font-semibold text-rose-fonce ring-1 ring-rose-poudre"
               >
                 +{n}
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
@@ -203,16 +229,18 @@ export function SaisieRapide({
             </p>
           ) : null}
 
-          <div className="mt-4 grid grid-cols-4 gap-2">
+          <div className="mt-5 grid grid-cols-4 gap-2">
             {[15, 30, 45, 60].map((n) => (
-              <button
+              <motion.button
                 key={n}
                 type="button"
                 onClick={() => setMinutes(String(n))}
-                className="chiffres min-h-[44px] rounded-carte bg-papier-doux text-[15px] font-medium text-encre-70 active:scale-95 active:bg-encre/5"
+                whileTap={TOUCHER}
+                transition={RESSORT}
+                className="chiffres min-h-[46px] rounded-tuile bg-rose-voile text-[15px] font-semibold text-rose-fonce ring-1 ring-rose-poudre"
               >
                 {n}
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
@@ -222,14 +250,15 @@ export function SaisieRapide({
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="Une note ? (facultatif)"
-        className="mt-4 w-full rounded-carte border border-bordure bg-papier-doux px-3.5 py-2.5 outline-none focus:border-tranche"
+        className="mt-5 w-full rounded-tuile bg-rose-voile px-4 py-3 outline-none ring-1 ring-rose-poudre focus:ring-2 focus:ring-dragee"
       />
 
       {erreur ? (
-        <p className="mt-3 rounded-carte bg-[#FBE9ED] px-3.5 py-2.5 text-[13px] text-[#A8324A]">
+        <p className="mt-3 rounded-tuile bg-[#FBE9ED] px-4 py-3 text-[13px] text-[#A8324A]">
           {erreur}
         </p>
       ) : null}
     </Feuille>
+    </>
   );
 }

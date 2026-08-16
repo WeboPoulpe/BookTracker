@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -10,6 +11,7 @@ import {
   IconePal,
   IconeReglages,
 } from "@/components/ui/Icones";
+import { RESSORT } from "@/lib/anim";
 
 type Onglet = {
   href: string;
@@ -23,10 +25,10 @@ const ONGLETS: Onglet[] = [
   { href: "/", libelle: "Accueil", Icone: IconeAccueil },
   {
     href: "/bibliotheque",
-    libelle: "Bibliothèque",
+    libelle: "Livres",
     Icone: IconeBibliotheque,
-    // Séries et citations sont des segments de la bibliothèque, pas des onglets :
-    // au-delà de cinq cibles, la barre devient illisible au pouce.
+    // Séries et citations sont des segments de la bibliothèque, pas des
+    // onglets : au-delà de cinq cibles, la barre devient illisible au pouce.
     englobe: ["/series", "/citations"],
   },
   { href: "/etagere", libelle: "Étagère", Icone: IconeEtagere },
@@ -46,10 +48,12 @@ export function TapBar() {
   return (
     <nav
       aria-label="Navigation principale"
-      className="relative z-40 shrink-0 border-t border-bordure bg-papier/85 backdrop-blur-xl"
-      style={{ paddingBottom: "var(--marge-bas)" }}
+      className="relative z-40 shrink-0 px-3"
+      style={{ paddingBottom: "calc(var(--marge-bas) + var(--ecart-tapbar))" }}
     >
-      <ul className="flex h-[var(--h-tapbar)] items-stretch">
+      {/* Barre flottante plutôt que collée au bord : elle se lit comme un
+          objet posé sur le contenu, et le dégradé de fond continue dessous. */}
+      <ul className="givre flex items-stretch rounded-[1.6rem] px-1.5 shadow-flottant ring-1 ring-white/60">
         {ONGLETS.map((onglet) => {
           const actif = estActif(pathname, onglet);
           const { Icone } = onglet;
@@ -59,23 +63,39 @@ export function TapBar() {
               <Link
                 href={onglet.href}
                 aria-current={actif ? "page" : undefined}
-                className={`group flex h-full flex-col items-center justify-center gap-[3px] transition-colors duration-150 ${
-                  actif ? "text-encre" : "text-encre-45"
-                }`}
+                className="relative flex h-[var(--h-tapbar)] flex-col items-center justify-center gap-1"
               >
-                <span className="relative flex items-center justify-center">
-                  {/* Pastille d'état actif — dragée, discrète, derrière l'icône */}
-                  <span
+                {/* layoutId : Motion interpole la pastille d'un onglet à
+                    l'autre au lieu de la faire disparaître puis réapparaître.
+                    C'est ce glissement qui fait « natif ». */}
+                {actif ? (
+                  <motion.span
+                    layoutId="pastille-onglet"
                     aria-hidden="true"
-                    className={`absolute h-8 w-12 rounded-pilule bg-dragee transition-all duration-200 ${
-                      actif ? "scale-100 opacity-100" : "scale-75 opacity-0"
+                    className="degrade-dragee absolute inset-x-1 inset-y-2 rounded-[1.15rem] shadow-dragee"
+                    transition={RESSORT}
+                  />
+                ) : null}
+
+                <motion.span
+                  className="relative"
+                  animate={{ y: actif ? -1 : 0, scale: actif ? 1.06 : 1 }}
+                  whileTap={{ scale: 0.88 }}
+                  transition={RESSORT}
+                >
+                  <Icone
+                    actif={actif}
+                    className={`h-[22px] w-[22px] transition-colors duration-200 ${
+                      actif ? "text-rose-encre" : "text-encre-45"
                     }`}
                   />
-                  <Icone actif={actif} className="relative h-[22px] w-[22px]" />
-                </span>
+                </motion.span>
+
                 <span
-                  className={`text-[10.5px] leading-none tracking-tight transition-[font-weight] ${
-                    actif ? "font-semibold" : "font-medium"
+                  className={`relative text-[10px] leading-none tracking-tight transition-colors duration-200 ${
+                    actif
+                      ? "font-semibold text-rose-encre"
+                      : "font-medium text-encre-45"
                   }`}
                 >
                   {onglet.libelle}

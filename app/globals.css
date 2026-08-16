@@ -3,38 +3,57 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    Tokens — Tailwind v4, configuration CSS-first.
    Pas de tailwind.config.js : tout vit ici.
+
+   Direction : papeterie romantique. On prolonge le vocabulaire du §7
+   (reliure, vélin, dorure) en le réchauffant — le rose dragée passe
+   d'accent décoratif à couleur d'action, les ombres se teintent au lieu
+   de grisailler, et les angles s'arrondissent franchement.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @theme {
-  /* Palette — vocabulaire de la reliure, pas du tableau de bord financier */
-  --color-encre: #1b1a2e; /* texte, tranches sombres — violet profond, pas du noir */
-  --color-velin: #f4f1f7; /* fond global, papier teinté lilas */
+  /* Palette du §7 */
+  --color-encre: #241f3a; /* texte — violet profond, jamais du noir */
+  --color-velin: #faf6f8; /* papier teinté rosé */
   --color-dragee: #f2c4d8; /* accent principal, rose dragée */
   --color-sauge: #bbd4c4; /* accent secondaire, états positifs */
   --color-tranche: #a8c0e8; /* bleu, éléments de navigation */
-  --color-dorure: #e8b84b; /* accent rare : objectif atteint, série de jours */
+  --color-dorure: #e0a83c; /* accent rare : objectif atteint, série de jours */
 
-  /* Dérivés — surfaces et texte secondaire, dans la même famille chromatique */
+  /* Extensions rose — nuances d'action et de fond */
+  --color-rose-voile: #fdf3f7; /* lavis de fond */
+  --color-rose-poudre: #f8dde8;
+  --color-rose-fonce: #c4638c; /* rose lisible sur blanc, pour le texte */
+  --color-rose-encre: #7a2f4d; /* texte sur fond dragée */
+  --color-lilas: #ece4f5;
+
+  /* Dérivés — surfaces et texte secondaire */
   --color-papier: #ffffff;
-  --color-papier-doux: #fbfaFc;
-  --color-encre-70: #4a4863;
-  --color-encre-45: #7d7b95;
-  --color-encre-20: #c9c7d6;
-  --color-bordure: #e6e2ee;
+  --color-papier-doux: #fdfafb;
+  --color-encre-70: #56506f;
+  --color-encre-45: #8b849f;
+  --color-encre-20: #d3ccdd;
+  --color-bordure: #efe6ee;
 
-  /* Rayons — arrondis généreux, registre iOS */
-  --radius-feuille: 1.5rem;
-  --radius-carte: 1rem;
+  /* Rayons — franchement arrondis, registre papeterie */
+  --radius-feuille: 1.75rem;
+  --radius-carte: 1.25rem;
+  --radius-tuile: 1rem;
   --radius-pilule: 999px;
 
-  /* Ombres — diffuses et teintées encre, jamais du noir pur */
-  --shadow-carte: 0 1px 2px rgb(27 26 46 / 0.04), 0 4px 16px rgb(27 26 46 / 0.06);
-  --shadow-flottant: 0 4px 12px rgb(27 26 46 / 0.1), 0 12px 32px rgb(27 26 46 / 0.14);
-  --shadow-feuille: 0 -8px 40px rgb(27 26 46 / 0.16);
+  /* Ombres teintées rose — une ombre grise sur fond rosé fait sale */
+  --shadow-carte: 0 1px 2px rgb(196 99 140 / 0.05),
+    0 6px 20px rgb(196 99 140 / 0.07);
+  --shadow-carte-forte: 0 2px 4px rgb(196 99 140 / 0.07),
+    0 12px 32px rgb(196 99 140 / 0.12);
+  --shadow-flottant: 0 4px 12px rgb(140 90 120 / 0.1),
+    0 16px 40px rgb(140 90 120 / 0.16);
+  --shadow-feuille: 0 -8px 48px rgb(140 90 120 / 0.18);
+  --shadow-dragee: 0 4px 16px rgb(226 140 175 / 0.4);
 
-  /* Courbes — ressort iOS pour les gestes, sobre pour le reste */
+  /* Courbes */
   --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-sobre: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-rebond: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Les familles typographiques pointent vers les variables next/font,
@@ -57,31 +76,45 @@
     --marge-haut: env(safe-area-inset-top, 0px);
     --marge-bas: env(safe-area-inset-bottom, 0px);
 
-    /* Hauteur de la tapbar, hors marge système */
-    --h-tapbar: 3.75rem;
+    /* Tapbar flottante : hauteur + son détachement du bord */
+    --h-tapbar: 4rem;
+    --ecart-tapbar: 0.75rem;
+
+    /* Dégradés réutilisés */
+    --degrade-dragee: linear-gradient(135deg, #f7b9d2 0%, #e79ec0 100%);
+    --degrade-doux: linear-gradient(135deg, #fdf3f7 0%, #f3e9f5 100%);
   }
 
   html {
-    /* dvh : suit la rétraction de la barre d'URL mobile, contrairement à vh */
     height: 100dvh;
     -webkit-text-size-adjust: 100%;
-    scrollbar-gutter: stable;
   }
 
   body {
     height: 100dvh;
     overflow: hidden; /* c'est le conteneur interne qui défile, comme dans une app */
-    background-color: var(--color-velin);
     color: var(--color-encre);
     font-family: var(--font-ui);
-    font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
 
-    /* Pas de rebond élastique sur le document : ça trahit la page web */
+    /* Lavis de fond : un aplat uni rend l'écran plat, surtout sur mobile
+       où l'on voit toute la surface d'un coup. */
+    background-color: var(--color-velin);
+    background-image:
+      radial-gradient(
+        ellipse 80% 50% at 15% 0%,
+        rgb(242 196 216 / 0.5) 0%,
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse 70% 45% at 90% 8%,
+        rgb(236 228 245 / 0.75) 0%,
+        transparent 62%
+      );
+    background-attachment: fixed;
+
     overscroll-behavior: none;
-    /* Pas de flash gris au tap sur Android */
     -webkit-tap-highlight-color: transparent;
-    /* Supprime le délai de 300 ms sans casser le zoom d'accessibilité */
     touch-action: manipulation;
   }
 
@@ -95,18 +128,16 @@
     -webkit-user-select: none;
   }
 
-  /* Chiffres tabulaires partout où on compare des nombres */
   .chiffres,
   th,
   td[data-nombre] {
     font-variant-numeric: tabular-nums;
   }
 
-  /* Focus visible partout — exigence du §7 */
   :focus-visible {
-    outline: 2px solid var(--color-encre);
+    outline: 2px solid var(--color-rose-fonce);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: 8px;
   }
 
   /* Les champs à moins de 16 px déclenchent un zoom automatique sur iOS */
@@ -120,12 +151,12 @@
   h2,
   h3 {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
   }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Utilitaires d'application
+   Utilitaires
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @utility zone-defilable {
@@ -148,6 +179,31 @@
   }
 }
 
+@utility carte {
+  background-color: var(--color-papier);
+  border-radius: var(--radius-carte);
+  box-shadow: var(--shadow-carte);
+}
+
+/* Verre dépoli — tapbar et en-têtes collants */
+@utility givre {
+  background-color: rgb(255 255 255 / 0.72);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+}
+
+@utility degrade-dragee {
+  background-image: var(--degrade-dragee);
+}
+
+/* Texte en dégradé — réservé aux grands titres, illisible en petit corps */
+@utility titre-degrade {
+  background-image: linear-gradient(120deg, #241f3a 10%, #a54a76 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 /* Cible tactile de 44 px minimum, même quand le visuel est plus petit */
 @utility cible-44 {
   position: relative;
@@ -161,64 +217,72 @@
   }
 }
 
-@utility carte {
-  background-color: var(--color-papier);
-  border-radius: var(--radius-carte);
-  box-shadow: var(--shadow-carte);
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
-   Animations — une seule chorégraphie dans l'app : la cascade de l'étagère.
+   Animations CSS
+   Le gros de la chorégraphie est piloté par Motion (composants client).
+   Ne restent ici que les décors, qui n'ont pas besoin de JavaScript.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-@keyframes pose-tranche {
+@keyframes derive {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(3%, -4%) scale(1.06);
+  }
+  66% {
+    transform: translate(-3%, 3%) scale(0.96);
+  }
+}
+
+@keyframes scintille {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes miroite {
   from {
-    transform: translateY(12%) scaleY(0.96);
-    opacity: 0;
+    background-position: 200% 0;
   }
   to {
-    transform: translateY(0) scaleY(1);
-    opacity: 1;
+    background-position: -200% 0;
   }
 }
 
-@keyframes monte-feuille {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
+.decor-derive {
+  animation: derive 22s ease-in-out infinite;
 }
 
-@keyframes fondu {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.decor-scintille {
+  animation: scintille 3.5s ease-in-out infinite;
 }
 
-.tranche-animee {
-  animation: pose-tranche 0.42s var(--ease-ios) backwards;
-  transform-origin: bottom;
-}
-
-.feuille-animee {
-  animation: monte-feuille 0.34s var(--ease-ios);
-}
-
-.fondu-animee {
-  animation: fondu 0.2s var(--ease-sobre);
+/* Squelette de chargement — Neon met ~500 ms à se réveiller (§11) */
+.squelette {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-bordure) 25%,
+    var(--color-rose-voile) 50%,
+    var(--color-bordure) 75%
+  );
+  background-size: 200% 100%;
+  animation: miroite 1.4s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   /* La cascade devient un fondu, conformément au §7 */
-  .tranche-animee,
-  .feuille-animee {
-    animation: fondu 0.15s linear backwards;
-    transform: none;
+  .decor-derive,
+  .decor-scintille,
+  .squelette {
+    animation: none;
   }
   *,
   *::before,

@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
 
+import { SegmentsBibliotheque } from "@/components/SegmentsBibliotheque";
 import { BoutonLien } from "@/components/ui/Bouton";
 import { EnTete, EtatVide } from "@/components/ui/EnTete";
 import { db } from "@/db";
@@ -33,25 +34,7 @@ export default async function CitationsPage() {
     <>
       <EnTete titre="Citations" detail={pluriel(lignes.length, "citation")} />
 
-      <div className="rail-horizontal px-5 pb-1">
-        <div className="flex w-max gap-2">
-          <Link
-            href="/bibliotheque"
-            className="flex min-h-[36px] items-center rounded-pilule bg-papier px-3.5 text-[13px] font-medium text-encre-70"
-          >
-            Livres
-          </Link>
-          <Link
-            href="/series"
-            className="flex min-h-[36px] items-center rounded-pilule bg-papier px-3.5 text-[13px] font-medium text-encre-70"
-          >
-            Séries
-          </Link>
-          <span className="flex min-h-[36px] items-center rounded-pilule bg-encre px-3.5 text-[13px] font-medium text-velin">
-            Citations
-          </span>
-        </div>
-      </div>
+      <SegmentsBibliotheque actif="/citations" />
 
       {lignes.length === 0 ? (
         <EtatVide

@@ -1,7 +1,13 @@
+"use client";
+
+import { motion } from "motion/react";
 import Link from "next/link";
 
 import type { Statut } from "@/db/schema";
+import { RESSORT, TOUCHER, conteneurCascade, elementCascadeX } from "@/lib/anim";
 import { LIBELLE_STATUT, ORDRE_STATUTS, nombre } from "@/lib/format";
+
+const LienAnime = motion.create(Link);
 
 /**
  * Rail de filtres. Défilement horizontal plutôt qu'un menu déroulant : sur
@@ -28,31 +34,47 @@ export function FiltresStatut({
 
   return (
     <div className="rail-horizontal -mx-5 px-5">
-      <div className="flex w-max gap-2 pb-1">
+      <motion.div
+        initial="masque"
+        animate="visible"
+        variants={conteneurCascade(0.045)}
+        className="flex w-max gap-2 pb-1"
+      >
         {entrees.map(({ cle, libelle, n }) => {
           const estActif = cle === actif;
           return (
-            <Link
+            <LienAnime
               key={cle}
               href={cle === "tous" ? "/bibliotheque" : `/bibliotheque?statut=${cle}`}
               scroll={false}
+              variants={elementCascadeX}
+              whileTap={TOUCHER}
+              transition={RESSORT}
               aria-current={estActif ? "true" : undefined}
-              className={`flex min-h-[36px] items-center gap-1.5 rounded-pilule px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors ${
+              className={`relative flex min-h-[38px] items-center gap-1.5 rounded-pilule px-4 text-[13px] font-semibold whitespace-nowrap ${
                 estActif
-                  ? "bg-encre text-velin"
-                  : "bg-papier text-encre-70 active:bg-encre/5"
+                  ? "text-rose-encre"
+                  : "bg-white/70 text-encre-70 ring-1 ring-white/80 backdrop-blur-sm"
               }`}
             >
-              {libelle}
+              {estActif ? (
+                <motion.span
+                  layoutId="pastille-filtre"
+                  aria-hidden="true"
+                  className="degrade-dragee absolute inset-0 rounded-pilule shadow-dragee"
+                  transition={RESSORT}
+                />
+              ) : null}
+              <span className="relative">{libelle}</span>
               <span
-                className={`chiffres text-[11px] ${estActif ? "opacity-60" : "opacity-45"}`}
+                className={`chiffres relative text-[11px] ${estActif ? "opacity-65" : "opacity-45"}`}
               >
                 {nombre(n)}
               </span>
-            </Link>
+            </LienAnime>
           );
         })}
-      </div>
+      </motion.div>
     </div>
   );
 }

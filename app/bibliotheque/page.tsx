@@ -1,6 +1,5 @@
-import { CacheLocal } from "@/components/CacheLocal";
-import { CarteLivre } from "@/components/CarteLivre";
 import { FiltresStatut } from "@/components/FiltresStatut";
+import { GrilleLivres } from "@/components/GrilleLivres";
 import { BoutonLien } from "@/components/ui/Bouton";
 import { EnTete, EtatVide } from "@/components/ui/EnTete";
 import { compterParStatut, listerLivres } from "@/db/requetes/livres";
@@ -31,7 +30,6 @@ export default async function Bibliotheque({
 
   return (
     <>
-      <CacheLocal livres={livres} />
       <EnTete
         titre="Bibliothèque"
         detail={
@@ -76,11 +74,7 @@ export default async function Bibliotheque({
           }
         />
       ) : (
-        <div className="grid grid-cols-3 gap-x-3 gap-y-5 px-5 pt-4 pb-8 sm:grid-cols-4">
-          {livres.map((livre, i) => (
-            <CarteLivre key={livre.id} livre={livre} priorite={i < 6} />
-          ))}
-        </div>
+        <GrilleLivres livres={livres} />
       )}
     </>
   );

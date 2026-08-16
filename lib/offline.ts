@@ -2,13 +2,13 @@
 
 import Dexie, { type EntityTable } from "dexie";
 
-import type { LivreListe } from "@/db/requetes/livres";
-
 /**
- * Cache local et file de synchro (§8).
+ * File de synchro des écritures.
  *
- * C'est ce qui distingue l'app d'un Google Sheets sur mobile : on lit et on
- * écrit sans réseau, et la reprise se fait toute seule.
+ * L'app fonctionne principalement en ligne : la lecture hors ligne est
+ * assurée par le cache du service worker, pas par une copie locale de la
+ * bibliothèque. Ce module ne garde donc que ce que le cache HTTP ne sait pas
+ * faire — retenir une saisie faite sans réseau et la rejouer au retour.
  */
 
 export type Operation = "creer" | "modifier" | "supprimer" | "session";
@@ -24,11 +24,7 @@ export type EnAttente = {
   derniereErreur: string | null;
 };
 
-/** Instantané d'un livre, tel qu'affiché par les écrans. */
-export type LivreCache = LivreListe & { _majLe: number };
-
 class BaseLocale extends Dexie {
-  livres!: EntityTable<LivreCache, "id">;
   fileSynchro!: EntityTable<EnAttente, "id">;
 
   constructor() {
@@ -37,6 +33,10 @@ class BaseLocale extends Dexie {
       livres: "id, statut, serieId, titre, auteur",
       fileSynchro: "++id, horodatage, table",
     });
+    // La v1 embarquait un miroir de la bibliothèque, jamais relu : les
+    // écrans lisent le serveur, le service worker s'occupe du hors ligne.
+    // `null` supprime le magasin sur les bases déjà créées.
+    this.version(2).stores({ livres: null });
   }
 }
 
@@ -51,25 +51,6 @@ function db(): BaseLocale | null {
   if (typeof window === "undefined" || !("indexedDB" in window)) return null;
   base ??= new BaseLocale();
   return base;
-}
-
-/* ── Cache de lecture ────────────────────────────────────────────────────── */
-
-export async function mettreEnCache(livres: LivreListe[]) {
-  const b = db();
-  if (!b) return;
-  const maintenant = Date.now();
-  await b.livres.bulkPut(livres.map((l) => ({ ...l, _majLe: maintenant })));
-}
-
-export async function lireCache(): Promise<LivreCache[]> {
-  const b = db();
-  if (!b) return [];
-  return b.livres.toArray();
-}
-
-export async function viderCache() {
-  await db()?.livres.clear();
 }
 
 /* ── File de synchro ─────────────────────────────────────────────────────── */

@@ -1,8 +1,10 @@
 "use client";
 
+import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { RESSORT } from "@/lib/anim";
 import { compterEnAttente, rejouer } from "@/lib/offline";
 import { pluriel } from "@/lib/format";
 
@@ -89,13 +91,16 @@ export function EtatReseau() {
     ? { fond: "#F6D9B8", texte: "#5C3A18" }
     : message && attente === 0
       ? { fond: "#BBD4C4", texte: "#1F4033" }
-      : { fond: "#A8C0E8", texte: "#1E3459" };
+      : { fond: "#F2C4D8", texte: "#7A2F4D" };
 
   return (
-    <div
+    <motion.div
       role="status"
       aria-live="polite"
-      className="fondu-animee shrink-0 px-4 py-1.5 text-center text-[12.5px] font-medium"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={RESSORT}
+      className="mx-3 mb-2 shrink-0 rounded-pilule px-4 py-2 text-center text-[12.5px] font-semibold shadow-carte"
       style={{ backgroundColor: teinte.fond, color: teinte.texte }}
     >
       {horsLigne ? (
@@ -114,6 +119,6 @@ export function EtatReseau() {
       ) : (
         message
       )}
-    </div>
+    </motion.div>
   );
 }

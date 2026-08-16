@@ -66,13 +66,45 @@ Voir l'ordre de construction au §10 de la spécification.
   fonctionne dès maintenant, y compris au lecteur d'écran.
 - **Authentification** — différée, faute d'identifiants Google. Point de
   bascule isolé dans `lib/utilisateur.ts`.
-- **Lecture hors ligne** — assurée par le cache du service worker, pas encore
-  par une lecture Dexie-first dans les écrans. Les pages déjà visitées
-  s'ouvrent sans réseau ; une page jamais ouverte affiche `/hors-ligne`.
-  Passer les écrans en Dexie-first les ferait basculer en composants client
-  et leur ferait perdre le rendu serveur — arbitrage à trancher.
+- **Lecture hors ligne** — assurée par le cache du service worker, et c'est
+  volontaire : pas de lecture Dexie-first, l'app tourne principalement en
+  ligne. Les pages déjà visitées s'ouvrent sans réseau, une page jamais
+  ouverte affiche `/hors-ligne`.
+- **Synchronisation Kindle** — impossible : Amazon n'expose aucune API de
+  progression de lecture, et l'API Goodreads est fermée. Seule voie stable si
+  besoin un jour : importer `My Clippings.txt` depuis la liseuse en USB pour
+  alimenter les citations.
+
+## Direction artistique
+
+Papeterie romantique : on prolonge le vocabulaire du §7 (reliure, vélin,
+dorure) en le réchauffant. Le rose dragée passe d'accent décoratif à couleur
+d'action, les ombres se teintent au lieu de grisailler, les angles
+s'arrondissent franchement.
+
+- **Tous les tokens vivent dans `app/globals.css`.** Tailwind v4 ne lit plus
+  `tailwind.config.js` — la moitié des tutoriels en ligne sont périmés là-dessus.
+- **`lib/anim.ts` centralise le vocabulaire d'animation.** Trois composants qui
+  choisissent chacun leur ressort donnent une app qui paraît bricolée, même
+  quand chaque animation prise isolément est réussie.
+- **`layoutId` partout où un indicateur se déplace** (tapbar, filtres,
+  segments, statuts) : Motion interpole la pastille au lieu de la faire
+  disparaître puis réapparaître. C'est ce glissement qui fait « natif ».
+- **La dorure reste réservée à un usage par écran** (§7), sinon elle perd tout
+  effet : objectif atteint, série de jours, liseré des 5 étoiles.
+- **`prefers-reduced-motion` est respecté partout**, y compris par les
+  confettis et le compteur incrémental.
+
+Coût : Motion ajoute environ 48 ko au premier chargement. Acceptable pour une
+PWA que le service worker met en cache, mais c'est le premier endroit où
+regarder si le démarrage à froid devient long.
 
 ## Hors ligne
+
+L'app fonctionne **principalement en ligne**. Le hors ligne est un filet, pas
+un mode de fonctionnement : le service worker resert ce qui a déjà été vu, et
+les écritures faites sans réseau attendent en file. Il n'y a volontairement
+pas de copie locale de la bibliothèque — les écrans lisent le serveur.
 
 Le service worker n'est **actif qu'en production** (`npm run build && npm start`) :
 en développement il servirait des pages périmées à chaque édition.

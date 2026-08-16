@@ -91,8 +91,10 @@ export default async function Etagere({
                 key={g.cle}
                 href={`/etagere?par=${g.cle}`}
                 scroll={false}
-                className={`flex min-h-[36px] items-center rounded-pilule px-3.5 text-[13px] font-medium whitespace-nowrap ${
-                  actif ? "bg-encre text-velin" : "bg-papier text-encre-70"
+                className={`flex min-h-[38px] items-center rounded-pilule px-4 text-[13px] font-semibold whitespace-nowrap ${
+                  actif
+                    ? "degrade-dragee text-rose-encre shadow-dragee"
+                    : "bg-white/70 text-encre-70 ring-1 ring-white/80 backdrop-blur-sm"
                 }`}
               >
                 {g.libelle}
@@ -125,7 +127,9 @@ export default async function Etagere({
 
               <div className="rail-horizontal mt-2.5 px-5">
                 {/* Le filet sous les tranches, c'est la planche de l'étagère */}
-                <div className="flex w-max items-end gap-[3px] border-b-2 border-encre-20 pb-0">
+                {/* Le filet sous les tranches, c'est la planche de l'étagère —
+                    dégradé pour lui donner une épaisseur, pas juste un trait */}
+                <div className="flex w-max items-end gap-[3px] border-b-[3px] border-[#D8C3B0] pb-0">
                   {livresDuGroupe.map((livre) => (
                     <Tranche key={livre.id} livre={livre} rang={rang++} />
                   ))}

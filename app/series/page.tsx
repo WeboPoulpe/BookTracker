@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Couverture } from "@/components/Couverture";
+import { SegmentsBibliotheque } from "@/components/SegmentsBibliotheque";
 import { BoutonLien } from "@/components/ui/Bouton";
 import { EnTete, EtatVide } from "@/components/ui/EnTete";
 import { listerSeries } from "@/db/requetes/series";
@@ -18,25 +19,7 @@ export default async function SeriesPage() {
     <>
       <EnTete titre="Séries" detail={pluriel(series.length, "série")} />
 
-      <div className="rail-horizontal px-5 pb-1">
-        <div className="flex w-max gap-2">
-          <Link
-            href="/bibliotheque"
-            className="flex min-h-[36px] items-center rounded-pilule bg-papier px-3.5 text-[13px] font-medium text-encre-70"
-          >
-            Livres
-          </Link>
-          <span className="flex min-h-[36px] items-center rounded-pilule bg-encre px-3.5 text-[13px] font-medium text-velin">
-            Séries
-          </span>
-          <Link
-            href="/citations"
-            className="flex min-h-[36px] items-center rounded-pilule bg-papier px-3.5 text-[13px] font-medium text-encre-70"
-          >
-            Citations
-          </Link>
-        </div>
-      </div>
+      <SegmentsBibliotheque actif="/series" />
 
       {series.length === 0 ? (
         <EtatVide

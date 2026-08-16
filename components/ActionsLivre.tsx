@@ -1,11 +1,13 @@
 "use client";
 
+import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { SaisieRapide } from "@/components/SaisieRapide";
 import { Bouton } from "@/components/ui/Bouton";
 import type { Statut } from "@/db/schema";
+import { RESSORT, TOUCHER } from "@/lib/anim";
 import { envoyer } from "@/lib/client-api";
 import { COULEUR_STATUT, LIBELLE_STATUT, ORDRE_STATUTS } from "@/lib/format";
 
@@ -57,26 +59,45 @@ export function ActionsLivre({ livre }: { livre: Livre }) {
             const actif = s === statut;
             const c = COULEUR_STATUT[s];
             return (
-              <button
+              <motion.button
                 key={s}
                 type="button"
                 onClick={() => changer(s)}
                 aria-pressed={actif}
-                className="min-h-[36px] rounded-pilule px-3.5 text-[13px] font-medium whitespace-nowrap transition-all active:scale-95"
-                style={{
-                  backgroundColor: actif ? c.fond : "transparent",
-                  color: actif ? c.texte : "#7D7B95",
-                  boxShadow: actif ? "none" : "inset 0 0 0 1px #E6E2EE",
-                }}
+                whileTap={TOUCHER}
+                transition={RESSORT}
+                className="relative min-h-[38px] rounded-pilule px-4 text-[13px] font-semibold whitespace-nowrap"
               >
-                {LIBELLE_STATUT[s]}
-              </button>
+                {actif ? (
+                  <motion.span
+                    layoutId="pastille-statut"
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-pilule shadow-sm"
+                    style={{ backgroundColor: c.fond }}
+                    transition={RESSORT}
+                  />
+                ) : null}
+                <span
+                  className="relative"
+                  style={{
+                    color: actif ? c.texte : "#8B849F",
+                  }}
+                >
+                  {LIBELLE_STATUT[s]}
+                </span>
+                {!actif ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-pilule bg-white/60 ring-1 ring-white/80 backdrop-blur-sm -z-10"
+                  />
+                ) : null}
+              </motion.button>
             );
           })}
         </div>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-5">
         <Bouton taille="lg" onClick={() => setSaisie(true)} disabled={enCours}>
           Enregistrer ma page
         </Bouton>

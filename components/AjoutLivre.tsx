@@ -284,7 +284,7 @@ export function AjoutLivre() {
           onChange={(e) => setRequete(e.target.value)}
           placeholder="Titre, auteur ou ISBN"
           enterKeyHint="search"
-          className="w-full rounded-pilule border border-bordure bg-papier py-3 pr-4 pl-10 outline-none focus:border-tranche"
+          className="w-full rounded-pilule bg-white/85 py-3.5 pr-4 pl-10 ring-1 ring-rose-poudre outline-none backdrop-blur-sm focus:ring-2 focus:ring-dragee"
         />
       </div>
 

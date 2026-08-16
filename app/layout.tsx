@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Newsreader, Schibsted_Grotesk } from "next/font/go
 
 import { EtatReseau } from "@/components/EtatReseau";
 import { TapBar } from "@/components/TapBar";
+import { Decor } from "@/components/ui/Decor";
 
 import "./globals.css";
 
@@ -43,7 +44,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#F4F1F7",
+  themeColor: "#FAF6F8",
   width: "device-width",
   initialScale: 1,
   // Sous les encoches : le fond s'étend, on gère les marges nous-mêmes
@@ -60,6 +61,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${display.variable} ${lecture.variable} ${ui.variable}`}>
       <body>
+        <Decor />
         {/* Le shell ne défile jamais : seul <main> défile, comme dans une app native */}
         <div className="flex h-dvh flex-col overflow-hidden">
           <main className="zone-defilable relative flex-1">{children}</main>
