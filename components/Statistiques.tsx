@@ -19,14 +19,42 @@ import { resoudreGenre } from "@/lib/genres";
 const LienAnime = motion.create(Link);
 
 const MOIS_LONGS = [
-  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+  "Janvier",
+  "Février",
+  "Mars",
+  "Avril",
+  "Mai",
+  "Juin",
+  "Juillet",
+  "Août",
+  "Septembre",
+  "Octobre",
+  "Novembre",
+  "Décembre",
 ];
 
-/** Construit une URL de bibliothèque filtrée, en gardant la portée courante. */
+/** URL des statistiques pour une portée donnée. */
+function urlStatistiques(annee: number | null, mois: number | null) {
+  const p = new URLSearchParams();
+  if (annee !== null) p.set("annee", String(annee));
+  if (mois !== null) p.set("mois", String(mois));
+  const q = p.toString();
+  return q ? `/statistiques?${q}` : "/statistiques";
+}
+
+/**
+ * Construit une URL de bibliothèque filtrée, en gardant la portée courante.
+ *
+ * Le paramètre `retour` transporte l'écran d'origine : arrivé ici par un
+ * graphique, on veut retourner au graphique, pas élargir le filtre. Le
+ * déduire des filtres présents serait fragile — les mêmes paramètres peuvent
+ * venir d'ailleurs.
+ */
 function lien(
   portee: Stats["portee"],
   extra: Record<string, string | number | undefined>,
+  /** Portée d'origine, quand elle diffère de celle visée par le lien */
+  origine?: { annee: number | null; mois: number | null },
 ) {
   const p = new URLSearchParams();
   if (portee.annee !== null) p.set("annee", String(portee.annee));
@@ -34,6 +62,13 @@ function lien(
   for (const [k, v] of Object.entries(extra)) {
     if (v !== undefined && v !== "") p.set(k, String(v));
   }
+  p.set(
+    "retour",
+    urlStatistiques(
+      origine ? origine.annee : portee.annee,
+      origine ? origine.mois : portee.mois,
+    ),
+  );
   return `/bibliotheque?${p.toString()}`;
 }
 
@@ -79,10 +114,7 @@ export function Statistiques({ stats: s }: { stats: Stats }) {
     // Rampe ordinale : la couleur redit l'épaisseur du livre, qui est
     // justement ce que la tranche mesure.
     couleur: RAMPE[i],
-    href: lien(portee, {
-      pages: t.cle,
-      lus: 1,
-    }),
+    href: lien(portee, { pages: t.cle }),
   }));
 
   const genres: Barre[] = s.parGenre.map((t) => ({
@@ -90,28 +122,28 @@ export function Statistiques({ stats: s }: { stats: Stats }) {
     libelle: t.libelle,
     valeur: t.total,
     pastille: resoudreGenre(t.cle).couleur,
-    href: lien(portee, { genre: t.cle, lus: 1 }),
+    href: lien(portee, { genre: t.cle }),
   }));
 
   const formats: Barre[] = s.parFormat.map((t) => ({
     cle: t.cle,
     libelle: t.libelle,
     valeur: t.total,
-    href: lien(portee, { format: t.cle, lus: 1 }),
+    href: lien(portee, { format: t.cle }),
   }));
 
   const auteurs: Barre[] = s.parAuteur.map((t) => ({
     cle: t.cle,
     libelle: t.libelle,
     valeur: t.total,
-    href: lien(portee, { auteur: t.cle, lus: 1 }),
+    href: lien(portee, { auteur: t.cle }),
   }));
 
   const notes: Barre[] = s.parNote.map((t) => ({
     cle: t.cle,
     libelle: `${t.libelle} ★`,
     valeur: t.total,
-    href: lien(portee, { note: t.cle, lus: 1 }),
+    href: lien(portee, { note: t.cle }),
   }));
 
   const parMois = (mesure: "livres" | "pages"): Barre[] =>
@@ -119,10 +151,12 @@ export function Statistiques({ stats: s }: { stats: Stats }) {
       cle: m.cle,
       libelle: m.libelle,
       valeur: m[mesure],
+      // La colonne pointe vers sa propre période, mais le retour ramène à la
+      // portée qu'on regardait, pas à celle de la colonne cliquée.
       href:
         s.granularite === "mois"
-          ? `/bibliotheque?annee=${portee.annee}&mois=${m.cle}&lus=1`
-          : `/bibliotheque?annee=${m.cle}&lus=1`,
+          ? lien({ annee: portee.annee, mois: Number(m.cle) }, {}, portee)
+          : lien({ annee: Number(m.cle), mois: null }, {}, portee),
     }));
 
   const intitulePeriode =
@@ -179,7 +213,7 @@ export function Statistiques({ stats: s }: { stats: Stats }) {
         </Section>
       </motion.div>
 
-      {/* ── Série temporelle : deux mesures, deux graphiques ──────────── */}
+      {/* ── Série temporelle : deux mesures, deux graphiques ───────────── */}
       <motion.div variants={elementCascade}>
         <Section
           titre={
@@ -279,14 +313,6 @@ export function PorteeStatistiques({
   portee: Stats["portee"];
   annees: number[];
 }) {
-  const lienPortee = (annee: number | null, mois: number | null) => {
-    const p = new URLSearchParams();
-    if (annee !== null) p.set("annee", String(annee));
-    if (mois !== null) p.set("mois", String(mois));
-    const q = p.toString();
-    return q ? `/statistiques?${q}` : "/statistiques";
-  };
-
   return (
     <div className="space-y-2 px-5 pb-2">
       <div className="rail-horizontal -mx-5 px-5">
@@ -296,7 +322,7 @@ export function PorteeStatistiques({
             return (
               <LienAnime
                 key={a ?? "toutes"}
-                href={lienPortee(a, null)}
+                href={urlStatistiques(a, null)}
                 scroll={false}
                 whileTap={TOUCHER}
                 transition={RESSORT}
@@ -331,7 +357,7 @@ export function PorteeStatistiques({
               return (
                 <Link
                   key={m ?? "annee"}
-                  href={lienPortee(portee.annee, m)}
+                  href={urlStatistiques(portee.annee, m)}
                   scroll={false}
                   className={`flex min-h-[34px] items-center rounded-pilule px-3 text-[12px] font-medium whitespace-nowrap ${
                     actif

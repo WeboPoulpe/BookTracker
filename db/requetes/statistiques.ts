@@ -215,9 +215,12 @@ export async function statistiques(
             pages: duMois.reduce((s, l) => s + (l.pages ?? 0), 0),
           };
         })
-      : anneesDisponibles
+      : // De la plus récente à la plus ancienne : sur une portée
+        // pluriannuelle, l'année en cours est celle qu'on vient consulter,
+        // et elle doit être sous le pouce plutôt qu'au bout du défilement.
+        anneesDisponibles
           .slice()
-          .sort((a, b) => a - b)
+          .sort((a, b) => b - a)
           .map((a) => {
             const delAnnee = terminees.filter((l) => anneeDe(l.fin!) === a);
             return {

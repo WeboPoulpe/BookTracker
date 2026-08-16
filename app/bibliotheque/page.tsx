@@ -4,6 +4,7 @@ import { FiltresStatut } from "@/components/FiltresStatut";
 import { GrilleLivres } from "@/components/GrilleLivres";
 import { BoutonLien } from "@/components/ui/Bouton";
 import { EnTete, EtatVide } from "@/components/ui/EnTete";
+import { IconeRetour } from "@/components/ui/Icones";
 import { compterParStatut, listerLivres, type FiltresLivres } from "@/db/requetes/livres";
 import type { Statut } from "@/db/schema";
 import { LONGUEURS } from "@/db/requetes/statistiques";
@@ -35,7 +36,21 @@ type Params = {
   note?: string;
   pages?: string;
   auteur?: string;
+  retour?: string;
 };
+
+/**
+ * Valide la destination de retour transmise en paramètre.
+ *
+ * On n'accepte qu'un chemin interne : sans ce garde-fou, un lien forgé
+ * pourrait faire pointer le bouton vers un site tiers depuis une page de
+ * l'app. `//` est rejeté car un navigateur y lit une URL absolue.
+ */
+function retourSur(valeur: string | undefined): string | null {
+  if (!valeur) return null;
+  if (!valeur.startsWith("/") || valeur.startsWith("//")) return null;
+  return valeur;
+}
 
 function entier(v: string | undefined, min: number, max: number) {
   if (!v) return undefined;
@@ -114,6 +129,7 @@ export default async function Bibliotheque({
 
   const { filtres, etiquettes } = lireFiltres(params);
   const filtre = etiquettes.length > 0;
+  const retour = retourSur(params.retour);
 
   const utilisateurId = await utilisateurCourantId();
   const [livres, { parStatut, total }] = await Promise.all([
@@ -146,16 +162,25 @@ export default async function Bibliotheque({
 
       {filtre ? (
         // Bandeau de filtre actif : on arrive ici depuis un graphique, il
-        // faut voir ce qu'on regarde et pouvoir en sortir d'un geste.
+        // faut voir ce qu'on regarde et pouvoir revenir d'un geste.
         <div className="mx-5 mb-3 flex items-center justify-between gap-3 rounded-tuile bg-rose-poudre px-4 py-2.5">
           <p className="min-w-0 text-[13px] font-medium text-rose-encre">
             {etiquettes.join(" · ")}
           </p>
+          {/* Venu d'un graphique, le geste attendu est d'y retourner — pas
+              d'élargir le filtre à toute la bibliothèque. */}
           <Link
-            href="/bibliotheque"
-            className="shrink-0 text-[12px] font-semibold text-rose-encre underline"
+            href={retour ?? "/bibliotheque"}
+            className="flex shrink-0 items-center gap-0.5 text-[12px] font-semibold text-rose-encre underline"
           >
-            Tout voir
+            {retour ? (
+              <>
+                <IconeRetour className="h-3.5 w-3.5" />
+                Statistiques
+              </>
+            ) : (
+              "Tout voir"
+            )}
           </Link>
         </div>
       ) : (
@@ -189,8 +214,12 @@ export default async function Bibliotheque({
                 </BoutonLien>
               </div>
             ) : filtre ? (
-              <BoutonLien href="/bibliotheque" taille="sm" variante="doux">
-                Voir toute la bibliothèque
+              <BoutonLien
+                href={retour ?? "/bibliotheque"}
+                taille="sm"
+                variante="doux"
+              >
+                {retour ? "Retour aux statistiques" : "Voir toute la bibliothèque"}
               </BoutonLien>
             ) : undefined
           }
