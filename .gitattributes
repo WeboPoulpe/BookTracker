@@ -1,0 +1,8 @@
+# Fin de ligne normalisée en LF dans le dépôt, quelle que soit la plateforme.
+# Sans ça, le même fichier apparaît modifié entre Windows et le CI Vercel.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.webp binary

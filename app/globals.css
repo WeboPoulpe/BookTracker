@@ -1,0 +1,231 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Tokens — Tailwind v4, configuration CSS-first.
+   Pas de tailwind.config.js : tout vit ici.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* Palette — vocabulaire de la reliure, pas du tableau de bord financier */
+  --color-encre: #1b1a2e; /* texte, tranches sombres — violet profond, pas du noir */
+  --color-velin: #f4f1f7; /* fond global, papier teinté lilas */
+  --color-dragee: #f2c4d8; /* accent principal, rose dragée */
+  --color-sauge: #bbd4c4; /* accent secondaire, états positifs */
+  --color-tranche: #a8c0e8; /* bleu, éléments de navigation */
+  --color-dorure: #e8b84b; /* accent rare : objectif atteint, série de jours */
+
+  /* Dérivés — surfaces et texte secondaire, dans la même famille chromatique */
+  --color-papier: #ffffff;
+  --color-papier-doux: #fbfaFc;
+  --color-encre-70: #4a4863;
+  --color-encre-45: #7d7b95;
+  --color-encre-20: #c9c7d6;
+  --color-bordure: #e6e2ee;
+
+  /* Rayons — arrondis généreux, registre iOS */
+  --radius-feuille: 1.5rem;
+  --radius-carte: 1rem;
+  --radius-pilule: 999px;
+
+  /* Ombres — diffuses et teintées encre, jamais du noir pur */
+  --shadow-carte: 0 1px 2px rgb(27 26 46 / 0.04), 0 4px 16px rgb(27 26 46 / 0.06);
+  --shadow-flottant: 0 4px 12px rgb(27 26 46 / 0.1), 0 12px 32px rgb(27 26 46 / 0.14);
+  --shadow-feuille: 0 -8px 40px rgb(27 26 46 / 0.16);
+
+  /* Courbes — ressort iOS pour les gestes, sobre pour le reste */
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-sobre: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Les familles typographiques pointent vers les variables next/font,
+   d'où `inline` : Tailwind doit résoudre le var() au lieu de le figer. */
+@theme inline {
+  --font-display: var(--police-display), ui-sans-serif, system-ui, sans-serif;
+  --font-lecture: var(--police-lecture), Georgia, "Times New Roman", serif;
+  --font-ui: var(--police-ui), system-ui, -apple-system, sans-serif;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Base — on vise une application, pas une page web.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  :root {
+    color-scheme: light;
+
+    /* Retombées des encoches / barre gestuelle. 0px sur navigateur desktop. */
+    --marge-haut: env(safe-area-inset-top, 0px);
+    --marge-bas: env(safe-area-inset-bottom, 0px);
+
+    /* Hauteur de la tapbar, hors marge système */
+    --h-tapbar: 3.75rem;
+  }
+
+  html {
+    /* dvh : suit la rétraction de la barre d'URL mobile, contrairement à vh */
+    height: 100dvh;
+    -webkit-text-size-adjust: 100%;
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    height: 100dvh;
+    overflow: hidden; /* c'est le conteneur interne qui défile, comme dans une app */
+    background-color: var(--color-velin);
+    color: var(--color-encre);
+    font-family: var(--font-ui);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+
+    /* Pas de rebond élastique sur le document : ça trahit la page web */
+    overscroll-behavior: none;
+    /* Pas de flash gris au tap sur Android */
+    -webkit-tap-highlight-color: transparent;
+    /* Supprime le délai de 300 ms sans casser le zoom d'accessibilité */
+    touch-action: manipulation;
+  }
+
+  /* Le chrome ne se sélectionne pas — le contenu, si. */
+  button,
+  nav,
+  label,
+  [role="tab"],
+  [role="button"] {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Chiffres tabulaires partout où on compare des nombres */
+  .chiffres,
+  th,
+  td[data-nombre] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Focus visible partout — exigence du §7 */
+  :focus-visible {
+    outline: 2px solid var(--color-encre);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Les champs à moins de 16 px déclenchent un zoom automatique sur iOS */
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1rem);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Utilitaires d'application
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@utility zone-defilable {
+  overflow-y: auto;
+  overscroll-behavior-y: contain; /* le scroll ne « fuit » pas vers le parent */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility rail-horizontal {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Cible tactile de 44 px minimum, même quand le visuel est plus petit */
+@utility cible-44 {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 50% 50% 50% 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@utility carte {
+  background-color: var(--color-papier);
+  border-radius: var(--radius-carte);
+  box-shadow: var(--shadow-carte);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Animations — une seule chorégraphie dans l'app : la cascade de l'étagère.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes pose-tranche {
+  from {
+    transform: translateY(12%) scaleY(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scaleY(1);
+    opacity: 1;
+  }
+}
+
+@keyframes monte-feuille {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fondu {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tranche-animee {
+  animation: pose-tranche 0.42s var(--ease-ios) backwards;
+  transform-origin: bottom;
+}
+
+.feuille-animee {
+  animation: monte-feuille 0.34s var(--ease-ios);
+}
+
+.fondu-animee {
+  animation: fondu 0.2s var(--ease-sobre);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* La cascade devient un fondu, conformément au §7 */
+  .tranche-animee,
+  .feuille-animee {
+    animation: fondu 0.15s linear backwards;
+    transform: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
