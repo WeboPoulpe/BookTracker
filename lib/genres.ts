@@ -36,6 +36,165 @@ export const GENRES: Genre[] = [
 
 const PAR_CLE = new Map(GENRES.map((g) => [g.cle, g]));
 
+/**
+ * Sous-genres proposés par genre.
+ *
+ * Liste ouverte : le champ reste libre, ces valeurs ne sont qu'une aide à la
+ * saisie. Un référentiel fermé finirait par refuser le livre qu'on tient
+ * justement en main — c'est le défaut qu'on reproche aux tableurs du marché.
+ *
+ * Le sous-genre n'a délibérément aucune couleur : c'est le genre qui pilote
+ * la teinte des tranches (§7). Trente teintes de plus rendraient l'étagère
+ * illisible au lieu de l'enrichir.
+ */
+export const SOUS_GENRES: Record<string, string[]> = {
+  romance: [
+    "Romance contemporaine",
+    "Romance historique",
+    "New adult",
+    "Dark romance",
+    "Romantasy",
+    "Comédie romantique",
+    "Second chance",
+    "Enemies to lovers",
+    "Romance sportive",
+    "Romance mafia",
+  ],
+  fantasy: [
+    "High fantasy",
+    "Dark fantasy",
+    "Urban fantasy",
+    "Romantasy",
+    "Fantasy jeunesse",
+    "Cozy fantasy",
+    "Portal fantasy",
+    "Mythologie",
+    "Bit-lit",
+  ],
+  sf: [
+    "Space opera",
+    "Dystopie",
+    "Post-apocalyptique",
+    "Anticipation",
+    "Cyberpunk",
+    "Voyage temporel",
+    "Hard SF",
+    "Uchronie",
+  ],
+  thriller: [
+    "Thriller psychologique",
+    "Domestic noir",
+    "Thriller médical",
+    "Techno-thriller",
+    "Thriller juridique",
+    "Thriller politique",
+    "Survival",
+  ],
+  policier: [
+    "Polar nordique",
+    "Cosy mystery",
+    "Whodunit",
+    "Roman noir",
+    "Procédural",
+    "Cold case",
+    "True crime",
+  ],
+  horreur: [
+    "Horreur gothique",
+    "Fantastique",
+    "Body horror",
+    "Folk horror",
+    "Maison hantée",
+    "Épouvante",
+  ],
+  contemporain: [
+    "Littérature blanche",
+    "Feel-good",
+    "Chronique familiale",
+    "Roman choral",
+    "Autofiction",
+    "Roman initiatique",
+    "Slice of life",
+  ],
+  historique: [
+    "Antiquité",
+    "Moyen Âge",
+    "Renaissance",
+    "Révolution",
+    "XIXᵉ siècle",
+    "Première Guerre mondiale",
+    "Seconde Guerre mondiale",
+    "Saga familiale",
+  ],
+  classique: [
+    "Classique français",
+    "Classique russe",
+    "Classique anglais",
+    "Antiquité",
+    "Théâtre",
+    "Conte",
+  ],
+  nature: [
+    "Nature writing",
+    "Récit de voyage",
+    "Écologie",
+    "Montagne",
+    "Mer",
+    "Animaux",
+  ],
+  essai: [
+    "Philosophie",
+    "Sociologie",
+    "Sciences",
+    "Politique",
+    "Féminisme",
+    "Histoire des idées",
+    "Économie",
+    "Psychologie",
+  ],
+  biographie: [
+    "Autobiographie",
+    "Mémoires",
+    "Récit de vie",
+    "Correspondance",
+    "Journal intime",
+    "Témoignage",
+  ],
+  jeunesse: [
+    "Young adult",
+    "Middle grade",
+    "Album",
+    "Premier roman",
+    "Conte",
+    "Aventure",
+  ],
+  bd: [
+    "Manga shōnen",
+    "Manga shōjo",
+    "Manga seinen",
+    "Roman graphique",
+    "Franco-belge",
+    "Comics",
+    "Webtoon",
+  ],
+  poesie: ["Poésie contemporaine", "Poésie classique", "Haïku", "Slam", "Recueil"],
+  developpement: [
+    "Productivité",
+    "Bien-être",
+    "Méditation",
+    "Relations",
+    "Carrière",
+    "Finances personnelles",
+  ],
+};
+
+/** Sous-genres suggérés pour un libellé de genre, vide si le genre est inconnu. */
+export function sousGenresDe(genre?: string | null): string[] {
+  if (!genre) return [];
+  const g = resoudreGenre(genre);
+  return g.cle === "inconnu" ? [] : (SOUS_GENRES[g.cle] ?? []);
+}
+
 /** Repli neutre : une tranche sans genre reste dans la famille encre. */
 export const GENRE_INCONNU: Genre = {
   cle: "inconnu",

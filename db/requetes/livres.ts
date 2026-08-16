@@ -136,10 +136,10 @@ export async function livreParId(utilisateurId: string, id: number) {
       dureeMinutes: livres.dureeMinutes,
       sousGenre: livres.sousGenre,
       isbn13: livres.isbn13,
-      axeIntensite: livres.axeIntensite,
+      axeIntrigue: livres.axeIntrigue,
+      axePersonnages: livres.axePersonnages,
       axeEmotion: livres.axeEmotion,
-      axeNoirceur: livres.axeNoirceur,
-      axeRomance: livres.axeRomance,
+      axeThemes: livres.axeThemes,
     })
     .from(livres)
     .leftJoin(series, eq(series.id, livres.serieId))

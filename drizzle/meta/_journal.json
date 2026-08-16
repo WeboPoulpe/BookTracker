@@ -22,6 +22,20 @@
       "when": 1786905881984,
       "tag": "0002_slow_justin_hammer",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786907939682,
+      "tag": "0003_retrait_anciens_axes",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786907958353,
+      "tag": "0004_ajout_nouveaux_axes",
+      "breakpoints": true
     }
   ]
 }

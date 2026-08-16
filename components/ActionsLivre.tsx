@@ -32,10 +32,10 @@ type Livre = {
   dateSortie: string | null;
   statut: Statut | null;
   note: number | null;
-  axeIntensite: number | null;
+  axeIntrigue: number | null;
+  axePersonnages: number | null;
   axeEmotion: number | null;
-  axeNoirceur: number | null;
-  axeRomance: number | null;
+  axeThemes: number | null;
   humeur: string | null;
   emoji: string | null;
   avis: string | null;

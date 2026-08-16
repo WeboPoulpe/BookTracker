@@ -6,10 +6,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChoixCouverture } from "@/components/ChoixCouverture";
 import { Couverture } from "@/components/Couverture";
 import { Bouton } from "@/components/ui/Bouton";
-import { Champ, Segments, Selecteur } from "@/components/ui/Champ";
+import {
+  Champ,
+  ChampSuggestions,
+  Segments,
+  Selecteur,
+} from "@/components/ui/Champ";
 import { IconeRecherche, IconeRetour } from "@/components/ui/Icones";
 import { envoyer } from "@/lib/client-api";
-import { GENRES } from "@/lib/genres";
+import { GENRES, sousGenresDe } from "@/lib/genres";
 import { envoyerCouverture, type CouverturePreparee } from "@/lib/image";
 import type { Resultat } from "@/lib/openlibrary";
 import { STATUTS } from "@/lib/validation";
@@ -22,6 +27,7 @@ type Brouillon = {
   couvertureUrl: string;
   pages: string;
   genre: string;
+  sousGenre: string;
   serie: string;
   tome: string;
   format: "papier" | "ebook" | "audio";
@@ -35,6 +41,7 @@ const VIDE: Brouillon = {
   couvertureUrl: "",
   pages: "",
   genre: "",
+  sousGenre: "",
   serie: "",
   tome: "",
   format: "papier",
@@ -125,6 +132,11 @@ export function AjoutLivre() {
     [],
   );
 
+  const sousGenres = useMemo(
+    () => sousGenresDe(brouillon?.genre),
+    [brouillon?.genre],
+  );
+
   function choisir(r: Resultat) {
     ouvrirFormulaire({
       ...VIDE,
@@ -160,6 +172,7 @@ export function AjoutLivre() {
         isbn13: brouillon.isbn13 || null,
         couvertureUrl: brouillon.couvertureUrl || null,
         genre: brouillon.genre || null,
+        sousGenre: brouillon.sousGenre.trim() || null,
         serie: brouillon.serie || null,
       },
     });
@@ -275,7 +288,13 @@ export function AjoutLivre() {
           <Selecteur
             label="Genre"
             value={brouillon.genre}
-            onChange={(e) => set("genre")(e.target.value)}
+            onChange={(e) => {
+              // Changer de genre invalide le sous-genre précédent : « Space
+              // opera » n'a plus de sens une fois passé en « Biographie ».
+              setBrouillon((b) =>
+                b ? { ...b, genre: e.target.value, sousGenre: "" } : b,
+              );
+            }}
           >
             <option value="">Sans genre</option>
             {genresTries.map((g) => (
@@ -285,6 +304,20 @@ export function AjoutLivre() {
             ))}
           </Selecteur>
         </div>
+
+        <ChampSuggestions
+          id="sous-genre-ajout"
+          label="Sous-genre"
+          value={brouillon.sousGenre}
+          onChange={(e) => set("sousGenre")(e.target.value)}
+          suggestions={sousGenres}
+          placeholder={sousGenres[0] ?? "Facultatif"}
+          aide={
+            brouillon.genre
+              ? "Suggestions selon le genre, saisie libre acceptée"
+              : "Choisis un genre pour voir des suggestions"
+          }
+        />
 
         <Segments
           label="Format"

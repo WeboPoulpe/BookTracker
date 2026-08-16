@@ -127,10 +127,10 @@ function Axe({
 type Livre = {
   id: number;
   note: number | null;
-  axeIntensite: number | null;
+  axeIntrigue: number | null;
+  axePersonnages: number | null;
   axeEmotion: number | null;
-  axeNoirceur: number | null;
-  axeRomance: number | null;
+  axeThemes: number | null;
   humeur: string | null;
   emoji: string | null;
   avis: string | null;
@@ -149,10 +149,10 @@ export function FeuilleNotation({
 }) {
   const [note, setNote] = useState<number | null>(livre.note);
   const [axes, setAxes] = useState<Record<CleAxe, number | null>>({
-    axeIntensite: livre.axeIntensite,
+    axeIntrigue: livre.axeIntrigue,
+    axePersonnages: livre.axePersonnages,
     axeEmotion: livre.axeEmotion,
-    axeNoirceur: livre.axeNoirceur,
-    axeRomance: livre.axeRomance,
+    axeThemes: livre.axeThemes,
   });
   const [humeur, setHumeur] = useState(livre.humeur ?? "");
   const [emoji, setEmoji] = useState(livre.emoji ?? "");

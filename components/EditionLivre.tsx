@@ -3,12 +3,18 @@
 import { useMemo, useState } from "react";
 
 import { Bouton } from "@/components/ui/Bouton";
-import { Champ, Segments, Selecteur, ZoneTexte } from "@/components/ui/Champ";
+import {
+  Champ,
+  ChampSuggestions,
+  Segments,
+  Selecteur,
+  ZoneTexte,
+} from "@/components/ui/Champ";
 // Le statut ne se change pas ici : il ouvre ou clôt une lecture, et vit donc
 // avec les pastilles de la fiche, pas dans un formulaire de métadonnées.
 import { Feuille } from "@/components/ui/Feuille";
 import { envoyer } from "@/lib/client-api";
-import { GENRES } from "@/lib/genres";
+import { GENRES, sousGenresDe } from "@/lib/genres";
 
 type Livre = {
   id: number;
@@ -76,6 +82,10 @@ export function EditionLivre({
     () => [...GENRES].sort((a, b) => a.libelle.localeCompare(b.libelle, "fr")),
     [],
   );
+
+  // Les suggestions suivent le genre choisi : proposer « Space opera » sous
+  // « Biographie » ne rendrait service à personne.
+  const sousGenres = useMemo(() => sousGenresDe(v.genre), [v.genre]);
 
   async function enregistrer() {
     if (!v.titre.trim()) {
@@ -209,11 +219,13 @@ export function EditionLivre({
               </option>
             ))}
           </Selecteur>
-          <Champ
+          <ChampSuggestions
+            id="sous-genre-edition"
             label="Sous-genre"
             value={v.sousGenre}
             onChange={(e) => set("sousGenre")(e.target.value)}
-            placeholder="Thriller nordique"
+            suggestions={sousGenres}
+            placeholder={sousGenres[0] ?? "Libre"}
           />
         </div>
 

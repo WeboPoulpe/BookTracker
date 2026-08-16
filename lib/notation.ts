@@ -9,10 +9,10 @@
  */
 
 export const AXES = [
-  { cle: "axeIntensite", libelle: "Intensité", aide: "Rythme, tension" },
+  { cle: "axeIntrigue", libelle: "Intrigue", aide: "Rythme, construction" },
+  { cle: "axePersonnages", libelle: "Personnages", aide: "Profondeur, attachement" },
   { cle: "axeEmotion", libelle: "Émotion", aide: "Ce qu'il a remué" },
-  { cle: "axeNoirceur", libelle: "Noirceur", aide: "Dureté du propos" },
-  { cle: "axeRomance", libelle: "Romance", aide: "Place de l'amour" },
+  { cle: "axeThemes", libelle: "Thèmes", aide: "Richesse du propos" },
 ] as const;
 
 export type CleAxe = (typeof AXES)[number]["cle"];

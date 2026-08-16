@@ -37,6 +37,52 @@ export function Champ({
   );
 }
 
+/**
+ * Champ libre assorti de suggestions.
+ *
+ * `datalist` plutôt qu'un `select` : le référentiel de sous-genres ne peut
+ * pas être exhaustif, et une liste fermée finirait par refuser le livre qu'on
+ * tient en main. Le contrôle natif reste par ailleurs le plus confortable sur
+ * mobile, où un menu maison se bat contre le clavier.
+ */
+export function ChampSuggestions({
+  label,
+  aide,
+  suggestions,
+  id,
+  className = "",
+  ...props
+}: ComponentProps<"input"> & {
+  label: string;
+  aide?: string;
+  suggestions: string[];
+  id: string;
+}) {
+  const listeId = `${id}-suggestions`;
+
+  return (
+    <label className="block">
+      <span className={LABEL}>{label}</span>
+      <input
+        list={suggestions.length ? listeId : undefined}
+        autoComplete="off"
+        className={`${BASE} ${className}`}
+        {...props}
+      />
+      {suggestions.length ? (
+        <datalist id={listeId}>
+          {suggestions.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+      ) : null}
+      {aide ? (
+        <span className="mt-1 block text-[12px] text-encre-45">{aide}</span>
+      ) : null}
+    </label>
+  );
+}
+
 export function ZoneTexte({
   label,
   className = "",

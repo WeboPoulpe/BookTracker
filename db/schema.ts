@@ -84,10 +84,12 @@ export const livres = pgTable(
 
     // 0 à 5 par demi-étoiles
     note: numeric("note", { precision: 2, scale: 1, mode: "number" }),
-    axeIntensite: smallint("axe_intensite"),
+    // Quatre axes d'appréciation, tous facultatifs (§2). Ce qu'ils mesurent
+    // est décrit dans lib/notation.ts, seule source des libellés.
+    axeIntrigue: smallint("axe_intrigue"),
+    axePersonnages: smallint("axe_personnages"),
     axeEmotion: smallint("axe_emotion"),
-    axeNoirceur: smallint("axe_noirceur"),
-    axeRomance: smallint("axe_romance"),
+    axeThemes: smallint("axe_themes"),
 
     /** Quatrième de couverture — vient du catalogue ou de la saisie */
     synopsis: text("synopsis"),

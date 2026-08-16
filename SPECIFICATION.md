@@ -43,7 +43,7 @@ d'une seule main, sans réseau.
 - **Tableau de bord** : livres/pages de l'année, série de jours consécutifs, rythme mensuel,
   genre dominant, top auteurs, taux d'abandon.
 - **Notation multi-critères** : note globale en demi-étoiles + 4 axes optionnels
-  (`intensité`, `émotion`, `noirceur`, `romance`). Repris du n°1, c'est ce qui distingue
+  (`intrigue`, `personnages`, `émotion`, `thèmes`). Repris du n°1, c'est ce qui distingue
   un « 4/5 thriller » d'un « 4/5 historique ».
 - **PAL priorisée** : glisser-déposer entre `Envie` → `Bientôt` → `Suivant`, plus un bouton
   « Choisis pour moi » (tirage pondéré par la priorité).
@@ -172,11 +172,11 @@ create table livres (
   tome           numeric(4,1),           -- 1, 2, 2.5 (les hors-séries existent)
   statut         statut_lecture default 'a_lire',
   priorite       smallint default 0,     -- colonne PAL : 0 envie → 3 suivant
-  note           numeric(2,1),           -- 0 à 5, pas de 0,5
-  axe_intensite  smallint,               -- 0-5, nullable
-  axe_emotion    smallint,
-  axe_noirceur   smallint,
-  axe_romance    smallint,
+  note             numeric(2,1),         -- 0 à 5, par demi-étoiles
+  axe_intrigue     smallint,             -- 0-5, nullable
+  axe_personnages  smallint,
+  axe_emotion      smallint,
+  axe_themes       smallint,
   avis           text,
   humeur         text,
   prix           numeric(6,2),
@@ -222,7 +222,8 @@ create table citations (
 - `tome` en `numeric` : les tomes 2.5 et les préquelles existent (*Les Sept Sœurs* en a).
 - `page_atteinte` plutôt que `pages_lues` : on saisit le numéro qu'on a sous les yeux,
   pas une soustraction. La progression se calcule côté app.
-- Les axes de notation sont `nullable` : un essai historique n'a pas d'axe romance.
+- Les axes de notation sont `nullable` : tous les livres ne se jugent pas sur les
+  quatre, et forcer une valeur fabriquerait des statistiques fausses.
 
 ---
 

@@ -39,10 +39,10 @@ export const schemaLivre = z.object({
   priorite: z.coerce.number().int().min(0).max(3).default(0),
   // Demi-étoiles : 0,5 est valide, 0,3 ne l'est pas
   note: optionnel(z.coerce.number().min(0).max(5).multipleOf(0.5)),
-  axeIntensite: optionnel(z.coerce.number().int().min(0).max(5)),
+  axeIntrigue: optionnel(z.coerce.number().int().min(0).max(5)),
+  axePersonnages: optionnel(z.coerce.number().int().min(0).max(5)),
   axeEmotion: optionnel(z.coerce.number().int().min(0).max(5)),
-  axeNoirceur: optionnel(z.coerce.number().int().min(0).max(5)),
-  axeRomance: optionnel(z.coerce.number().int().min(0).max(5)),
+  axeThemes: optionnel(z.coerce.number().int().min(0).max(5)),
   synopsis: optionnel(z.string().trim().max(8_000)),
   resume: optionnel(z.string().trim().max(20_000)),
   avis: optionnel(z.string().trim().max(10_000)),
