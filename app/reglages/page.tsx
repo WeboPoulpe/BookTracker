@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ObjectifAnnuel } from "@/components/ObjectifAnnuel";
+import { Sauvegarde } from "@/components/Sauvegarde";
 import { EnTete } from "@/components/ui/EnTete";
 import { compterParStatut } from "@/db/requetes/livres";
 import { pluriel } from "@/lib/format";
@@ -53,10 +54,16 @@ export default async function Reglages() {
               detail="CSV, avec aperçu avant confirmation"
             />
             <Rangee
+              href="/reglages/kindle"
+              titre="Surlignages Kindle"
+              detail="Le fichier My Clippings.txt de la liseuse"
+            />
+            <Rangee
               href="/reglages/export"
               titre="Exporter"
               detail={`CSV Goodreads ou JSON complet · ${pluriel(total, "livre")}`}
             />
+            <Sauvegarde />
           </div>
         </section>
 

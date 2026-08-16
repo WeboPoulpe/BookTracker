@@ -263,14 +263,9 @@ const ALIAS: Record<string, string> = {
   écologie: "nature",
 };
 
-// Construite depuis une source ASCII : écrire la plage de diacritiques en
-// caractères combinants littéraux la rend invisible et cassable au moindre
-// changement d'encodage du fichier.
-const DIACRITIQUES = new RegExp("[\\u0300-\\u036f]", "g");
-
-function normaliser(valeur: string) {
-  return valeur.trim().toLowerCase().normalize("NFD").replace(DIACRITIQUES, "");
-}
+// Réexporté depuis lib/texte.ts : la normalisation y gère aussi les
+// ligatures françaises, que `normalize("NFD")` laisse intactes.
+import { normaliser } from "./texte";
 
 /**
  * Résout un genre écrit à la main. Tolère la casse, les accents et les

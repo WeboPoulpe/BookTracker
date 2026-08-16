@@ -2,7 +2,8 @@ import { asc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { db } from "@/db";
-import { citations, lectures, livres, series, sessions } from "@/db/schema";
+import { exportComplet } from "@/db/requetes/export";
+import { lectures, livres, series } from "@/db/schema";
 import { erreur } from "@/lib/api";
 import { aujourdhui } from "@/lib/date";
 import { versCsvGoodreads } from "@/lib/goodreads";
@@ -100,29 +101,9 @@ export async function GET(requete: Request) {
       });
     }
 
-    const [toutesLectures, toutesSessions, toutesCitations, toutesSeries] =
-      await Promise.all([
-        db.select().from(lectures),
-        db.select().from(sessions),
-        db.select().from(citations),
-        db.select().from(series).where(eq(series.utilisateurId, utilisateurId)),
-      ]);
-
-    const idsLivres = new Set(lignes.map((l) => l.id));
-    const lecturesFiltrees = toutesLectures.filter((l) =>
-      idsLivres.has(l.livreId),
-    );
-    const idsLectures = new Set(lecturesFiltrees.map((l) => l.id));
-
-    const contenu = {
-      version: 1,
-      exporteLe: new Date().toISOString(),
-      livres: lignes,
-      series: toutesSeries,
-      lectures: lecturesFiltrees,
-      sessions: toutesSessions.filter((s) => idsLectures.has(s.lectureId)),
-      citations: toutesCitations.filter((c) => idsLivres.has(c.livreId)),
-    };
+    // Même instantané que la sauvegarde automatique : deux implémentations
+    // qui divergeraient donneraient une sauvegarde incomplète en silence.
+    const contenu = await exportComplet(utilisateurId);
 
     return new NextResponse(JSON.stringify(contenu, null, 2), {
       headers: {

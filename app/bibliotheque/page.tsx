@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { FiltresStatut } from "@/components/FiltresStatut";
 import { GrilleLivres } from "@/components/GrilleLivres";
+import { RechercheBibliotheque } from "@/components/RechercheBibliotheque";
 import { BoutonLien } from "@/components/ui/Bouton";
 import { EnTete, EtatVide } from "@/components/ui/EnTete";
 import { IconeRetour } from "@/components/ui/Icones";
@@ -184,7 +185,10 @@ export default async function Bibliotheque({
           </Link>
         </div>
       ) : (
-        <div className="px-5">
+        <div className="space-y-3 px-5">
+          {/* Masquée quand un filtre de graphique est actif : on regarde
+              alors un sous-ensemble précis, pas sa bibliothèque entière. */}
+          <RechercheBibliotheque valeur={recherche ?? ""} />
           <FiltresStatut actif={statut} compteurs={parStatut} total={total} />
         </div>
       )}
@@ -192,16 +196,22 @@ export default async function Bibliotheque({
       {livres.length === 0 ? (
         <EtatVide
           titre={
-            filtre
-              ? "Aucun livre pour ce filtre."
-              : total === 0
-                ? "Aucun livre pour l'instant."
-                : `Rien en « ${statut === "tous" ? "tous" : LIBELLE_STATUT[statut]} ».`
+            recherche
+              ? `Rien pour « ${recherche} ».`
+              : filtre
+                ? "Aucun livre pour ce filtre."
+                : total === 0
+                  ? "Aucun livre pour l'instant."
+                  : `Rien en « ${statut === "tous" ? "tous" : LIBELLE_STATUT[statut]} ».`
           }
           texte={
-            total === 0
-              ? "Importe ta bibliothèque Goodreads, ou ajoute un premier livre à la main."
-              : undefined
+            recherche
+              ? statut !== "tous"
+                ? `La recherche ne porte que sur « ${LIBELLE_STATUT[statut]} ». Essaie sur « Tous ».`
+                : "Le titre, l'auteur et le nom de série sont fouillés."
+              : total === 0
+                ? "Importe ta bibliothèque Goodreads, ou ajoute un premier livre à la main."
+                : undefined
           }
           action={
             total === 0 ? (

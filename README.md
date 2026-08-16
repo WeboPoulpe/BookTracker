@@ -158,6 +158,58 @@ citations, et le livre lui-même.
   serveur sous forme de référence, pas de valeur : `AXES.map` y échoue avec
   « is not a function ». D'où `lib/notation.ts`.
 
+## Surlignages Kindle
+
+Amazon n'expose aucune API de lecture et l'API Goodreads est fermée. Le
+fichier `My Clippings.txt` de la liseuse reste la seule voie stable : on
+branche en USB, on dépose le fichier, les surlignages deviennent des
+citations.
+
+- **Analyse dans le navigateur**, aperçu des rapprochements avant toute
+  écriture. Les livres sans correspondance sont listés, jamais importés en
+  silence.
+- **Dédoublonnage des sélections étendues** : en étendant un surlignage, la
+  liseuse réenregistre le passage entier *et* remplace la ponctuation finale.
+  La comparaison porte donc sur le texte réduit à ses mots, sinon les deux
+  versions paraissent sans rapport.
+- **Réimport sans duplication** : les citations déjà présentes sont ignorées.
+- Formats français et anglais reconnus, signets écartés.
+
+Contrôles : `npx tsx scripts/verifier-kindle.ts` et
+`npx tsx scripts/verifier-titres.ts`.
+
+## Sauvegarde automatique
+
+Cron Vercel quotidien à 4 h → `/api/sauvegarde` → un instantané JSON complet
+dans un blob, **hors de Neon** : une sauvegarde stockée dans la base qu'elle
+protège ne protège de rien. Trente jours conservés, les plus anciennes sont
+purgées.
+
+- L'export manuel et la sauvegarde partagent **la même fonction**
+  (`db/requetes/export.ts`) : deux implémentations qui divergeraient
+  donneraient une sauvegarde incomplète sans que rien ne le signale.
+- Sans `BLOB_READ_WRITE_TOKEN`, le cron **n'échoue pas** — il journalise et
+  passe. Un échec quotidien noierait les vraies alertes.
+- Le cron vérifie `CRON_SECRET` quand il est défini.
+- Les couvertures importées ne sont pas incluses : des dizaines de ko chacune
+  dans un JSON quotidien. Leur nombre est rapporté.
+
+> Le plan Hobby de Vercel plafonne les crons à **une exécution par jour**, et
+> la déclenche à ±59 min de l'heure demandée.
+
+## Normalisation de texte
+
+`lib/texte.ts` — une seule implémentation, après en avoir eu trois.
+
+Le piège est français : `normalize("NFD")` **ne décompose pas les
+ligatures**. Sans traitement explicite, « sœurs » devient « s urs » et ne
+rejoindra jamais « soeurs » — ce qui rendait l'appariement Kindle inopérant
+sur un catalogue francophone.
+
+Le rapprochement de titres accepte qu'un titre soit le début de l'autre, mais
+**sur une frontière de mot** : « Dune » rejoint « Dune : le cycle » sans
+rejoindre « Dunkerque ».
+
 ## Dates et fuseau horaire
 
 **Tout ce qui manipule « aujourd'hui » passe par `lib/date.ts`**, calé sur
