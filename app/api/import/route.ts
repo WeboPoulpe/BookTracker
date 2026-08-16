@@ -40,6 +40,12 @@ const schemaLigne = z.object({
   axeIntrigue: z.number().int().min(0).max(5).nullish(),
   axePersonnages: z.number().int().min(0).max(5).nullish(),
   axeThemes: z.number().int().min(0).max(5).nullish(),
+
+  // Apports de Bookmory.
+  genre: z.string().trim().max(80).nullish(),
+  sousGenre: z.string().trim().max(80).nullish(),
+  dateSortie: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  prix: z.number().min(0).max(100_000).nullish(),
 });
 
 // Plafond par requête : le client découpe et affiche sa progression, ce qui

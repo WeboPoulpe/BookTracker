@@ -40,6 +40,12 @@ export type LivreImporte = {
   axeIntrigue?: number | null;
   axePersonnages?: number | null;
   axeThemes?: number | null;
+  /* Apports de Bookmory : genre déduit des étiquettes, date de parution,
+     prix d'achat. */
+  genre?: string | null;
+  sousGenre?: string | null;
+  dateSortie?: string | null;
+  prix?: number | null;
 };
 
 export type Rejet = { ligne: number; titre: string; motif: string };

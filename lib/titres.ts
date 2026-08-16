@@ -15,9 +15,20 @@ export type TitreDecompose = {
   tome: number | null;
 };
 
-/** « Titre (Série, #4) » — convention Goodreads et Open Library. */
+/**
+ * « Titre (Série, #4) » — convention Goodreads, Open Library et Bookmory.
+ *
+ * Trois variantes cohabitent selon l'outil :
+ *   · « (Les Sept Sœurs, #1) »  — la plus courante
+ *   · « (Cotton Malone #12) »   — sans virgule
+ *   · « (Bridgertons, #5-6) »   — intégrale, on retient le premier tome
+ *
+ * La parenthèse retenue est la dernière : « Dune (tome 1) (Herbert, #1) ».
+ */
 function parenthese(brut: string): TitreDecompose | null {
-  const m = brut.match(/^(.*?)\s*\(([^()]*?),?\s*#(\d+(?:\.\d+)?)\s*\)\s*$/);
+  const m = brut.match(
+    /^(.*?)\s*\(([^()]*?),?\s*#(\d+(?:\.\d+)?)(?:\s*[-–]\s*\d+(?:\.\d+)?)?\s*\)\s*$/,
+  );
   if (!m) return null;
 
   const [, base, serie, tome] = m;

@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 
+import { analyserBookmory, estBookmory } from "./bookmory";
 import { analyser as analyserGoodreads, type LivreImporte, type Rejet } from "./goodreads";
 import { analyserStorygraph, estStorygraph } from "./storygraph";
 
@@ -15,7 +16,7 @@ import { analyserStorygraph, estStorygraph } from "./storygraph";
  * donnerait qu'un « aucune ligne exploitable » incompréhensible.
  */
 
-export type Format = "goodreads" | "storygraph" | "inconnu";
+export type Format = "goodreads" | "storygraph" | "bookmory" | "inconnu";
 
 export type Analyse = {
   format: Format;
@@ -32,22 +33,26 @@ export type Analyse = {
 export const NOM_FORMAT: Record<Format, string> = {
   goodreads: "Goodreads",
   storygraph: "StoryGraph",
+  bookmory: "Bookmory",
   inconnu: "format inconnu",
 };
 
-/** Lit la seule ligne d'en-tête, sans analyser tout le fichier. */
+/** Lit les deux premières lignes, sans analyser tout le fichier. */
 export function detecterFormat(csv: string): Format {
-  const { meta } = Papa.parse(csv, {
-    header: true,
-    preview: 1,
+  const { data } = Papa.parse<string[]>(csv, {
+    header: false,
+    preview: 2,
     skipEmptyLines: true,
-    transformHeader: (h) => h.trim(),
   });
 
-  const colonnes = meta.fields ?? [];
+  // Bookmory en premier : son en-tête tient sur deux lignes, et une lecture
+  // « header: true » prendrait la ligne de regroupement pour les colonnes.
+  if (estBookmory(data)) return "bookmory";
 
-  // `Exclusive Shelf` est la signature de Goodreads ; on la teste en premier,
-  // StoryGraph ayant aussi une colonne « Read Status ».
+  const colonnes = (data[0] ?? []).map((c) => c.trim());
+
+  // `Exclusive Shelf` est la signature de Goodreads ; on la teste avant
+  // StoryGraph, qui a lui aussi une colonne « Read Status ».
   if (colonnes.includes("Exclusive Shelf")) return "goodreads";
   if (estStorygraph(colonnes)) return "storygraph";
   return "inconnu";
@@ -55,6 +60,10 @@ export function detecterFormat(csv: string): Format {
 
 export function analyserCsv(csv: string): Analyse {
   const format = detecterFormat(csv);
+
+  if (format === "bookmory") {
+    return { format, ...analyserBookmory(csv) };
+  }
 
   if (format === "storygraph") {
     return { format, ...analyserStorygraph(csv) };

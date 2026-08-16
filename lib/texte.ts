@@ -40,23 +40,52 @@ export function normaliser(valeur: string): string {
     .trim();
 }
 
+/** Minuscules sans accent ni ligature, mais **ponctuation conservée**. */
+function sansAccent(valeur: string): string {
+  let v = valeur.toLowerCase();
+  for (const [motif, remplacement] of LIGATURES) v = v.replace(motif, remplacement);
+  return v
+    .normalize("NFD")
+    .replace(DIACRITIQUES, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Marqueurs de sous-titre ou de mention d'édition.
+ *
+ * C'est le cœur de la règle : un titre plus long n'est le même ouvrage que
+ * s'il enchaîne sur une ponctuation. Sans cette exigence, « La femme de
+ * ménage » avalait « La Femme de ménage voit tout » et « La Femme de ménage
+ * se marie » — trois romans distincts d'une même autrice, réduits à un seul.
+ * Les suites prolongent le titre du premier tome, c'est la règle et non
+ * l'exception.
+ */
+const SUITE_SOUS_TITRE = /^\s*[:(\[–—,;./-]/;
+
 /**
  * Deux titres désignent-ils le même ouvrage ?
  *
- * L'égalité stricte échoue trop souvent : la liseuse porte le sous-titre, la
- * bibliothèque la mention d'édition. On accepte donc qu'un titre soit le
- * début de l'autre — mais sur une frontière de mot, et pas avant trois
- * caractères. Sans la frontière, « ça » apparierait « cassandra » ; sans le
- * plancher, deux lettres suffiraient à tout confondre.
+ * L'égalité normalisée d'abord — elle absorbe casse, accents et ligatures.
+ * À défaut, un titre peut être le début de l'autre, mais seulement si la
+ * suite s'ouvre sur une ponctuation : « Dune : le cycle » oui, « La femme de
+ * ménage voit tout » non.
+ *
+ * Le plancher de trois caractères reste, pour que « Ça » n'aille pas
+ * s'apparier au premier titre venu.
  */
 export function memeTitre(a: string, b: string): boolean {
   const x = normaliser(a);
   const y = normaliser(b);
   if (!x || !y) return false;
   if (x === y) return true;
+  if (Math.min(x.length, y.length) < 3) return false;
 
-  const [court, long] = x.length <= y.length ? [x, y] : [y, x];
-  if (court.length < 3) return false;
+  const [court, long] =
+    sansAccent(a).length <= sansAccent(b).length
+      ? [sansAccent(a), sansAccent(b)]
+      : [sansAccent(b), sansAccent(a)];
 
-  return long.startsWith(`${court} `);
+  if (!long.startsWith(court)) return false;
+  return SUITE_SOUS_TITRE.test(long.slice(court.length));
 }

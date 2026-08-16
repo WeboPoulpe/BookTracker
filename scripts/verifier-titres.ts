@@ -21,6 +21,15 @@ const CAS: Array<[string, string, boolean]> = [
   ["Ça", "Cassandra", false],
   ["Dune", "Dunkerque", false],
   ["Le", "Le Comte de Monte-Cristo", false],
+  // Les suites prolongent le titre du premier tome : trois romans distincts
+  // de Freida McFadden, que l'ancienne règle réduisait à un seul.
+  ["La femme de ménage", "La Femme de ménage voit tout", false],
+  ["La femme de ménage", "La Femme de ménage se marie", false],
+  ["La femme de ménage", "Les secrets de la femme de ménage", false],
+  ["Harry Potter", "Harry Potter Collection", false],
+  // Mention d'édition : la ponctuation fait la différence
+  ["Verity", "Verity- version française", true],
+  ["Le chat du Dalai lama", "Le chat du Dalai lama (édition prestige)", true],
   // Titre court, mais identique
   ["Ça", "Ça", true],
 ];

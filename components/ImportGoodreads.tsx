@@ -18,7 +18,13 @@ export function ImportGoodreads() {
   const [etape, setEtape] = useState<Etape>("attente");
   const [analyse, setAnalyse] = useState<Analyse | null>(null);
   const [avancement, setAvancement] = useState(0);
-  const [bilan, setBilan] = useState({ crees: 0, ignores: 0, echecs: 0 });
+  const [bilan, setBilan] = useState({
+    crees: 0,
+    completes: 0,
+    inchanges: 0,
+    lecturesAjoutees: 0,
+    echecs: 0,
+  });
   const [couvertures, setCouvertures] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -56,7 +62,13 @@ export function ImportGoodreads() {
 
     setEtape("envoi");
     setAvancement(0);
-    const cumul = { crees: 0, ignores: 0, echecs: 0 };
+    const cumul = {
+      crees: 0,
+      completes: 0,
+      inchanges: 0,
+      lecturesAjoutees: 0,
+      echecs: 0,
+    };
 
     for (let i = 0; i < analyse.livres.length; i += TAILLE_LOT) {
       const lot = analyse.livres.slice(i, i + TAILLE_LOT);
@@ -75,7 +87,9 @@ export function ImportGoodreads() {
         }
 
         cumul.crees += data.crees;
-        cumul.ignores += data.ignores;
+        cumul.completes += data.completes;
+        cumul.inchanges += data.inchanges;
+        cumul.lecturesAjoutees += data.lecturesAjoutees;
         cumul.echecs += data.echecs?.length ?? 0;
       } catch {
         setErreur("Réseau interrompu pendant l'import.");
@@ -119,8 +133,18 @@ export function ImportGoodreads() {
               <dd className="font-semibold">{nombre(bilan.crees)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-encre-70">Déjà présents, ignorés</dt>
-              <dd>{nombre(bilan.ignores)}</dd>
+              <dt className="text-encre-70">Livres complétés</dt>
+              <dd className="font-semibold">{nombre(bilan.completes)}</dd>
+            </div>
+            {bilan.lecturesAjoutees > 0 ? (
+              <div className="flex justify-between">
+                <dt className="text-encre-70">Lectures ajoutées</dt>
+                <dd>{nombre(bilan.lecturesAjoutees)}</dd>
+              </div>
+            ) : null}
+            <div className="flex justify-between">
+              <dt className="text-encre-70">Déjà complets, inchangés</dt>
+              <dd>{nombre(bilan.inchanges)}</dd>
             </div>
             {bilan.echecs > 0 ? (
               <div className="flex justify-between text-[#A8324A]">
@@ -129,6 +153,10 @@ export function ImportGoodreads() {
               </div>
             ) : null}
           </dl>
+          <p className="mt-3 text-[12.5px] leading-relaxed text-encre-45">
+            Aucun champ déjà rempli n&apos;a été écrasé : seuls les champs
+            vides ont été complétés.
+          </p>
         </div>
 
         <div className="mt-4 carte p-5">
