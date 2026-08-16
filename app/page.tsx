@@ -19,16 +19,16 @@ function salutation(heure = new Date().getHours()) {
 
 export default async function Accueil() {
   const utilisateur = await utilisateurCourant();
-  const stats = await tableauDeBord(utilisateur?.id ?? "local");
+  const donnees = await tableauDeBord(utilisateur?.id ?? "local");
 
   return (
     <>
       <EnTete
         titre={`${salutation()} ${utilisateur?.nom ?? ""}`.trim()}
         detail={
-          stats.enCours.length > 0
-            ? `${stats.enCours.length} lecture${stats.enCours.length > 1 ? "s" : ""} en cours`
-            : `Année ${stats.annee}`
+          donnees.enCours.length > 0
+            ? `${donnees.enCours.length} lecture${donnees.enCours.length > 1 ? "s" : ""} en cours`
+            : `Année ${donnees.annee}`
         }
         action={
           // Réglages a quitté la tapbar au profit des statistiques : sans ce
@@ -43,7 +43,7 @@ export default async function Accueil() {
         }
       />
       <TableauDeBord
-        stats={stats}
+        donnees={donnees}
         objectif={utilisateur?.objectifAnnuel ?? 30}
       />
     </>

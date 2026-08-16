@@ -26,6 +26,10 @@ export type Statistiques = {
 
   livresLus: number;
   pagesLues: number;
+  /** Lectures abandonnées sur la période */
+  abandons: number;
+  /** abandons / (lus + abandons) ; null si rien n'a été terminé */
+  tauxAbandon: number | null;
   /** Pages par livre */
   moyennePages: number | null;
   /** Livres par mois sur la période couverte */
@@ -121,6 +125,20 @@ export async function statistiques(
 
   const livresLus = retenues.length;
   const pagesLues = retenues.reduce((s, l) => s + (l.pages ?? 0), 0);
+
+  // Les abandons de la période, exclus partout ailleurs mais nécessaires ici :
+  // le taux se rapporte aux seuls livres menés à leur terme, d'une façon ou
+  // d'une autre. Une pile à lire de deux cents titres jamais ouverts n'est
+  // pas un taux d'abandon de 0 %, c'est une absence de données.
+  const abandons = lignes.filter((l) => {
+    if (!l.abandonnee || !l.fin) return false;
+    if (portee.annee !== null && anneeDe(l.fin) !== portee.annee) return false;
+    if (portee.mois !== null && moisDe(l.fin) !== portee.mois) return false;
+    return true;
+  }).length;
+
+  const tauxAbandon =
+    livresLus + abandons === 0 ? null : abandons / (livresLus + abandons);
 
   // Moyenne sur les seuls livres dont on connaît la pagination : diviser par
   // le total ferait chuter la moyenne à cause des livres non renseignés.
@@ -236,6 +254,8 @@ export async function statistiques(
     anneesDisponibles,
     livresLus,
     pagesLues,
+    abandons,
+    tauxAbandon,
     moyennePages,
     moyenneParMois,
     joursMoyens,

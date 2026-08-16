@@ -158,6 +158,21 @@ citations, et le livre lui-même.
   serveur sous forme de référence, pas de valeur : `AXES.map` y échoue avec
   « is not a function ». D'où `lib/notation.ts`.
 
+## Accueil et statistiques : une seule source
+
+**L'accueil et l'écran Statistiques appellent la même fonction**
+(`statistiques()`), pour la même année. Ils ne peuvent donc pas se
+contredire. Ce n'était pas le cas avant : l'accueil calculait son « genre
+dominant » sur toute la bibliothèque, l'écran Statistiques sur les seules
+lectures de la période — deux mesures différentes sous le même nom, qui
+tombaient juste par hasard.
+
+`db/requetes/stats.ts` ne garde que ce qui est propre à l'accueil : les
+lectures en cours et la taille de la bibliothèque.
+
+Contrôle de non-régression : `npx tsx scripts/comparer-stats.ts` confronte
+les deux écrans mesure par mesure.
+
 ## Statistiques
 
 Onglet `/statistiques`, avec une portée réglable : toutes les années, une

@@ -1,62 +1,45 @@
-import { and, desc, eq, gte, isNotNull } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { lectures, livres, sessions } from "@/db/schema";
-import { libelleClassement } from "@/lib/genres";
+import { livres } from "@/db/schema";
 
 import { DERNIERE_SESSION, PAGE_ATTEINTE } from "./expressions";
-import {
-  classement,
-  dominant,
-  rythmeMensuel,
-  serieDeJours,
-  tauxAbandon,
-} from "@/lib/stats";
+import { statistiques, type Statistiques } from "./statistiques";
 
-export async function tableauDeBord(utilisateurId: string) {
+/**
+ * Données de l'accueil.
+ *
+ * Les chiffres de l'année viennent de `statistiques()`, la même fonction que
+ * l'écran Statistiques : les deux écrans ne peuvent donc pas se contredire.
+ * Ils se contredisaient d'ailleurs en puissance — l'accueil calculait son
+ * « genre dominant » sur toute la bibliothèque, l'écran Statistiques sur les
+ * seules lectures de la période. Deux mesures différentes sous le même nom.
+ *
+ * Ne reste ici que ce qui est propre à l'accueil : les lectures en cours et
+ * la taille de la bibliothèque.
+ */
+export type Accueil = {
+  annee: number;
+  stats: Statistiques;
+  enCours: Array<{
+    id: number;
+    titre: string;
+    auteur: string;
+    pages: number | null;
+    couvertureUrl: string | null;
+    genre: string | null;
+    pageAtteinte: number | null;
+    derniereSession: string | null;
+  }>;
+  total: number;
+};
+
+export async function tableauDeBord(utilisateurId: string): Promise<Accueil> {
   const annee = new Date().getFullYear();
-  const debutAnnee = `${annee}-01-01`;
 
-  const [termines, tousLivres, joursLus, enCours] = await Promise.all([
-    // Lectures terminées cette année, avec les métadonnées du livre
-    db
-      .select({
-        fin: lectures.fin,
-        abandonnee: lectures.abandonnee,
-        pages: livres.pages,
-        genre: livres.genre,
-        auteur: livres.auteur,
-      })
-      .from(lectures)
-      .innerJoin(livres, eq(livres.id, lectures.livreId))
-      .where(
-        and(
-          eq(livres.utilisateurId, utilisateurId),
-          isNotNull(lectures.fin),
-          gte(lectures.fin, debutAnnee),
-        ),
-      ),
+  const [stats, enCours, [compte]] = await Promise.all([
+    statistiques(utilisateurId, { annee, mois: null }),
 
-    db
-      .select({
-        statut: livres.statut,
-        genre: livres.genre,
-        sousGenre: livres.sousGenre,
-      })
-      .from(livres)
-      .where(eq(livres.utilisateurId, utilisateurId)),
-
-    // Jours distincts où une session a été enregistrée — base de la série
-    db
-      .selectDistinct({ jour: sessions.jour })
-      .from(sessions)
-      .innerJoin(lectures, eq(lectures.id, sessions.lectureId))
-      .innerJoin(livres, eq(livres.id, lectures.livreId))
-      .where(eq(livres.utilisateurId, utilisateurId))
-      .orderBy(desc(sessions.jour))
-      .limit(400),
-
-    // Les livres en cours, avec la page atteinte
     db
       .select({
         id: livres.id,
@@ -70,39 +53,19 @@ export async function tableauDeBord(utilisateurId: string) {
       })
       .from(livres)
       .where(
-        and(eq(livres.utilisateurId, utilisateurId), eq(livres.statut, "en_cours")),
+        and(
+          eq(livres.utilisateurId, utilisateurId),
+          eq(livres.statut, "en_cours"),
+        ),
       )
       .orderBy(desc(livres.creeLe))
       .limit(10),
+
+    db
+      .select({ total: count() })
+      .from(livres)
+      .where(eq(livres.utilisateurId, utilisateurId)),
   ]);
 
-  const lusAnnee = termines.filter((t) => !t.abandonnee);
-  const abandonsAnnee = termines.filter((t) => t.abandonnee);
-
-  const abandonsTotal = tousLivres.filter((l) => l.statut === "abandonne").length;
-  const lusTotal = tousLivres.filter((l) => l.statut === "lu").length;
-
-  return {
-    annee,
-    livresAnnee: lusAnnee.length,
-    pagesAnnee: lusAnnee.reduce((s, t) => s + (t.pages ?? 0), 0),
-    serie: serieDeJours(joursLus.map((j) => j.jour)),
-    rythme: rythmeMensuel(
-      lusAnnee.map((t) => t.fin),
-      annee,
-    ),
-    genreDominant: dominant(tousLivres.map((l) => l.genre)),
-    // Classement fin : le sous-genre quand il existe, le genre sinon. Sans ce
-    // repli, la statistique ne porterait que sur la poignée de livres
-    // sous-classés et ne dirait rien de la bibliothèque.
-    topClassement: classement(
-      tousLivres.map((l) => libelleClassement(l.genre, l.sousGenre)),
-      4,
-    ),
-    topAuteurs: classement(lusAnnee.map((t) => t.auteur)),
-    tauxAbandon: tauxAbandon(lusTotal, abandonsTotal),
-    abandonsAnnee: abandonsAnnee.length,
-    enCours,
-    total: tousLivres.length,
-  };
+  return { annee, stats, enCours, total: Number(compte?.total ?? 0) };
 }

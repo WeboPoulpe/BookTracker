@@ -5,35 +5,6 @@
  * §4 les veut testées unitairement. Les requêtes vivent dans db/requetes.
  */
 
-/**
- * Série de jours consécutifs, en remontant depuis aujourd'hui.
- *
- * La série reste vivante si on a lu hier mais pas encore aujourd'hui : la
- * casser à minuit punirait quelqu'un qui n'a simplement pas encore ouvert
- * son livre du soir.
- */
-export function serieDeJours(jours: string[], aujourdhui = new Date()): number {
-  if (jours.length === 0) return 0;
-
-  const uniques = new Set(jours);
-  const curseur = new Date(aujourdhui);
-  curseur.setHours(12, 0, 0, 0);
-
-  const iso = (d: Date) => d.toISOString().slice(0, 10);
-
-  if (!uniques.has(iso(curseur))) {
-    curseur.setDate(curseur.getDate() - 1);
-    if (!uniques.has(iso(curseur))) return 0;
-  }
-
-  let serie = 0;
-  while (uniques.has(iso(curseur))) {
-    serie += 1;
-    curseur.setDate(curseur.getDate() - 1);
-  }
-  return serie;
-}
-
 /** Répartition mensuelle sur l'année en cours, index 0 = janvier. */
 export function rythmeMensuel(
   dates: Array<string | null>,
