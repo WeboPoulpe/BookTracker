@@ -1,0 +1,14 @@
+{
+  // Vérification du service worker, hors du tsconfig principal : `lib.dom`
+  // et `lib.webworker` déclarent tous deux `self`, `caches` et `fetch` avec
+  // des types incompatibles, et les charger ensemble produit des dizaines
+  // d'erreurs de redéclaration.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["esnext", "webworker"],
+    "types": ["@serwist/next/typings"],
+    "noEmit": true
+  },
+  "include": ["app/sw.ts"],
+  "exclude": []
+}

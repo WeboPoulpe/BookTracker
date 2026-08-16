@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Newsreader, Schibsted_Grotesk } from "next/font/google";
 
+import { EtatReseau } from "@/components/EtatReseau";
 import { TapBar } from "@/components/TapBar";
 
 import "./globals.css";
@@ -62,6 +63,9 @@ export default function RootLayout({
         {/* Le shell ne défile jamais : seul <main> défile, comme dans une app native */}
         <div className="flex h-dvh flex-col overflow-hidden">
           <main className="zone-defilable relative flex-1">{children}</main>
+          {/* Entre le contenu et la tapbar : visible sans recouvrir ni le
+              titre de l'écran ni les cibles de navigation. */}
+          <EtatReseau />
           <TapBar />
         </div>
       </body>

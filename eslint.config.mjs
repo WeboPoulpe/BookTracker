@@ -18,6 +18,11 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // Bundles du service worker, écrits par Serwist au build. La source
+      // est app/sw.ts, elle, bien vérifiée.
+      "public/sw.js",
+      "public/sw.js.map",
+      "public/swe-worker-*.js",
     ],
   },
 ];

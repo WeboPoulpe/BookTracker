@@ -57,7 +57,7 @@ Voir l'ordre de construction au §10 de la spécification.
 - [x] PAL priorisée + « Choisis pour moi »
 - [x] Citations
 - [x] Export CSV Goodreads + JSON complet
-- [ ] PWA + hors ligne (Serwist, file de synchro Dexie)
+- [x] PWA + hors ligne (Serwist, file de synchro Dexie)
 
 Écarts assumés par rapport à la spécification :
 
@@ -66,9 +66,37 @@ Voir l'ordre de construction au §10 de la spécification.
   fonctionne dès maintenant, y compris au lecteur d'écran.
 - **Authentification** — différée, faute d'identifiants Google. Point de
   bascule isolé dans `lib/utilisateur.ts`.
-- **Saisie hors ligne** — les mutations passent déjà par des routes API
-  rejouables, mais la file Dexie n'est pas encore branchée : sans réseau,
-  l'enregistrement échoue au lieu d'être mis en attente.
+- **Lecture hors ligne** — assurée par le cache du service worker, pas encore
+  par une lecture Dexie-first dans les écrans. Les pages déjà visitées
+  s'ouvrent sans réseau ; une page jamais ouverte affiche `/hors-ligne`.
+  Passer les écrans en Dexie-first les ferait basculer en composants client
+  et leur ferait perdre le rendu serveur — arbitrage à trancher.
+
+## Hors ligne
+
+Le service worker n'est **actif qu'en production** (`npm run build && npm start`) :
+en développement il servirait des pages périmées à chaque édition.
+
+- **Lecture** — `NetworkFirst` sur les routes API, `CacheFirst` sur les
+  couvertures (elles ne changent jamais), `defaultCache` de Serwist pour les
+  pages et les payloads RSC, avec `cacheOnNavigation` pour couvrir les routes
+  atteintes via `next/link`.
+- **Écriture** — toute mutation passe par `lib/client-api.ts`. Si le réseau
+  manque, elle part dans la file Dexie (`lib/offline.ts`) au lieu d'échouer.
+- **Reprise** — `components/EtatReseau.tsx` rejoue la file au retour du
+  réseau et au montage, dans l'ordre chronologique, via `POST /api/sync`.
+  Une entrée refusée par le serveur (livre supprimé entre-temps, charge utile
+  invalide) est abandonnée après 5 tentatives pour ne pas bloquer la file.
+
+Chaque charge utile est revalidée côté serveur : elle n'est pas passée par le
+formulaire et a pu séjourner des jours dans IndexedDB.
+
+## Remise à zéro
+
+```bash
+npx tsx scripts/vider-donnees.ts             # liste ce qui serait supprimé
+npx tsx scripts/vider-donnees.ts --confirmer # supprime réellement
+```
 
 L'authentification Google est différée : l'app tourne en mono-utilisateur
 via `NEXT_PUBLIC_MODE_LOCAL`. Le point de bascule est isolé dans

@@ -1,3 +1,4 @@
+import { CacheLocal } from "@/components/CacheLocal";
 import { CarteLivre } from "@/components/CarteLivre";
 import { FiltresStatut } from "@/components/FiltresStatut";
 import { BoutonLien } from "@/components/ui/Bouton";
@@ -30,6 +31,7 @@ export default async function Bibliotheque({
 
   return (
     <>
+      <CacheLocal livres={livres} />
       <EnTete
         titre="Bibliothèque"
         detail={

@@ -7,6 +7,7 @@ import { Couverture } from "@/components/Couverture";
 import { Bouton } from "@/components/ui/Bouton";
 import { Champ, Segments, Selecteur } from "@/components/ui/Champ";
 import { IconeRecherche } from "@/components/ui/Icones";
+import { envoyer } from "@/lib/client-api";
 import { GENRES } from "@/lib/genres";
 import type { Resultat } from "@/lib/openlibrary";
 import { STATUTS } from "@/lib/validation";
@@ -113,35 +114,39 @@ export function AjoutLivre() {
     setEnvoi(true);
     setErreur(null);
 
-    try {
-      const r = await fetch("/api/livres", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...brouillon,
-          auteur: brouillon.auteur.trim() || "Auteur inconnu",
-          pages: brouillon.pages || null,
-          tome: brouillon.tome || null,
-          isbn13: brouillon.isbn13 || null,
-          couvertureUrl: brouillon.couvertureUrl || null,
-          genre: brouillon.genre || null,
-          serie: brouillon.serie || null,
-        }),
-      });
+    const r = await envoyer<{ livre: { id: number } }>({
+      url: "/api/livres",
+      methode: "POST",
+      file: { table: "livres", operation: "creer" },
+      corps: {
+        ...brouillon,
+        auteur: brouillon.auteur.trim() || "Auteur inconnu",
+        pages: brouillon.pages || null,
+        tome: brouillon.tome || null,
+        isbn13: brouillon.isbn13 || null,
+        couvertureUrl: brouillon.couvertureUrl || null,
+        genre: brouillon.genre || null,
+        serie: brouillon.serie || null,
+      },
+    });
 
-      const data = await r.json();
-      if (!r.ok) {
-        setErreur(data?.erreur?.message ?? "Enregistrement impossible.");
-        return;
-      }
+    setEnvoi(false);
 
-      router.push(`/bibliotheque/${data.livre.id}`);
-      router.refresh();
-    } catch {
-      setErreur("Réseau indisponible. Réessaie une fois reconnecté.");
-    } finally {
-      setEnvoi(false);
+    if (r.statut === "erreur") {
+      setErreur(r.message);
+      return;
     }
+
+    if (r.statut === "en_file") {
+      // Le livre n'a pas encore d'identifiant : il n'existera qu'à la
+      // reprise. On renvoie vers la bibliothèque plutôt que vers une fiche
+      // qui n'existe pas.
+      router.push("/bibliotheque");
+      return;
+    }
+
+    router.push(`/bibliotheque/${r.data.livre.id}`);
+    router.refresh();
   }
 
   /* ── Formulaire ─────────────────────────────────────────────────────── */

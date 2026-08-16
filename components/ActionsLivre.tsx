@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { SaisieRapide } from "@/components/SaisieRapide";
 import { Bouton } from "@/components/ui/Bouton";
 import type { Statut } from "@/db/schema";
+import { envoyer } from "@/lib/client-api";
 import { COULEUR_STATUT, LIBELLE_STATUT, ORDRE_STATUTS } from "@/lib/format";
 
 type Livre = {
@@ -32,17 +33,20 @@ export function ActionsLivre({ livre }: { livre: Livre }) {
     // si le serveur refuse. Sur mobile, attendre l'aller-retour se voit.
     setStatut(nouveau);
 
-    try {
-      const r = await fetch(`/api/livres/${livre.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ statut: nouveau }),
-      });
-      if (!r.ok) throw new Error();
-      demarrer(() => router.refresh());
-    } catch {
+    // `id` voyage dans le corps en plus de l'URL : hors ligne, c'est le
+    // corps seul qui est mis en file, et /api/sync doit savoir quoi viser.
+    const r = await envoyer({
+      url: `/api/livres/${livre.id}`,
+      methode: "PATCH",
+      file: { table: "livres", operation: "modifier" },
+      corps: { id: livre.id, statut: nouveau },
+    });
+
+    if (r.statut === "erreur") {
       setStatut(precedent);
+      return;
     }
+    if (r.statut === "ok") demarrer(() => router.refresh());
   }
 
   return (

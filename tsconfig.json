@@ -20,8 +20,12 @@
     ],
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    "types": ["@serwist/next/typings"]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  // app/sw.ts tourne dans un service worker, pas dans le DOM : les deux
+  // environnements déclarent `self`, `caches` et `fetch` avec des types
+  // incompatibles. Il est donc vérifié à part, via tsconfig.sw.json.
+  "exclude": ["node_modules", "app/sw.ts", "public/sw.js"]
 }

@@ -37,6 +37,11 @@ yarn-error.log*
 # outillage local (réglages de poste, non partagés)
 .claude/settings.local.json
 
+# service worker généré par Serwist au build
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js
+
 # vercel
 .vercel
 

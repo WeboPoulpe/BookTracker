@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Bouton } from "@/components/ui/Bouton";
 import { Feuille } from "@/components/ui/Feuille";
 import { Segments } from "@/components/ui/Champ";
+import { envoyer } from "@/lib/client-api";
 import { duree, pourcent, progression } from "@/lib/format";
 
 type Livre = {
@@ -69,33 +70,31 @@ export function SaisieRapide({
     setEnvoi(true);
     setErreur(null);
 
-    try {
-      const r = await fetch("/api/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          livreId: livre.id,
-          pageAtteinte: mode === "page" && page ? Number(page) : null,
-          minutes: mode === "minutes" && minutes ? Number(minutes) : null,
-          noteRapide: note.trim() || null,
-          termine,
-        }),
-      });
+    const r = await envoyer({
+      url: "/api/sessions",
+      methode: "POST",
+      file: { table: "sessions", operation: "session" },
+      corps: {
+        livreId: livre.id,
+        pageAtteinte: mode === "page" && page ? Number(page) : null,
+        minutes: mode === "minutes" && minutes ? Number(minutes) : null,
+        noteRapide: note.trim() || null,
+        termine,
+      },
+    });
 
-      const data = await r.json();
-      if (!r.ok) {
-        setErreur(data?.erreur?.message ?? "Enregistrement impossible.");
-        return;
-      }
+    setEnvoi(false);
 
-      onFermer();
-      router.refresh();
-    } catch {
-      // TODO(hors ligne) : basculer dans la file Dexie au lieu d'échouer
-      setErreur("Réseau indisponible.");
-    } finally {
-      setEnvoi(false);
+    if (r.statut === "erreur") {
+      setErreur(r.message);
+      return;
     }
+
+    // Mise en file comprise : la feuille se ferme comme si c'était passé.
+    // Faire autrement obligerait à réfléchir au réseau au moment précis où
+    // l'app promet un geste de moins de cinq secondes.
+    onFermer();
+    if (r.statut === "ok") router.refresh();
   }
 
   return (

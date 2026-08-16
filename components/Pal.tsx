@@ -8,6 +8,7 @@ import { Couverture } from "@/components/Couverture";
 import { Bouton } from "@/components/ui/Bouton";
 import { Feuille } from "@/components/ui/Feuille";
 import type { LivreListe } from "@/db/requetes/livres";
+import { envoyer } from "@/lib/client-api";
 import { nombre, pluriel } from "@/lib/format";
 
 /** 0 → 2, du simple désir à la prochaine lecture décidée. */
@@ -38,17 +39,18 @@ export function Pal({ livres }: { livres: LivreListe[] }) {
     const avant = priorites[livre.id] ?? 0;
     setPriorites((p) => ({ ...p, [livre.id]: vers }));
 
-    try {
-      const r = await fetch(`/api/livres/${livre.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ priorite: vers }),
-      });
-      if (!r.ok) throw new Error();
-      router.refresh();
-    } catch {
+    const r = await envoyer({
+      url: `/api/livres/${livre.id}`,
+      methode: "PATCH",
+      file: { table: "livres", operation: "modifier" },
+      corps: { id: livre.id, priorite: vers },
+    });
+
+    if (r.statut === "erreur") {
       setPriorites((p) => ({ ...p, [livre.id]: avant }));
+      return;
     }
+    if (r.statut === "ok") router.refresh();
   }
 
   /**

@@ -1,3 +1,4 @@
+import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -12,4 +13,16 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+const withSerwist = withSerwistInit({
+  swSrc: "app/sw.ts",
+  swDest: "public/sw.js",
+  // Le service worker intercepterait le rechargement à chaud et servirait
+  // des pages périmées à chaque édition. On le réserve à la production.
+  disable: process.env.NODE_ENV === "development",
+  // Met en cache les routes visitées via next/link, pas seulement celles
+  // ouvertes directement. C'est ce qui rend le mode avion utilisable.
+  cacheOnNavigation: true,
+  reloadOnOnline: false,
+});
+
+export default withSerwist(nextConfig);
