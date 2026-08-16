@@ -158,6 +158,28 @@ citations, et le livre lui-même.
   serveur sous forme de référence, pas de valeur : `AXES.map` y échoue avec
   « is not a function ». D'où `lib/notation.ts`.
 
+## Genres et sous-genres
+
+16 genres, 112 sous-genres. Le **genre** pilote la couleur des tranches sur
+l'étagère (§7) ; le **sous-genre** affine le classement sans introduire de
+teinte supplémentaire — trente couleurs de plus rendraient l'étagère illisible
+au lieu de l'enrichir.
+
+- La liste déroulante de sous-genres est **filtrée par le genre choisi**, et
+  désactivée tant qu'aucun genre n'est sélectionné. Changer de genre vide le
+  sous-genre, devenu incohérent.
+- Une option **« Autre… »** ouvre une saisie libre : une liste strictement
+  fermée finirait par refuser le livre qu'on tient en main, c'est le reproche
+  central fait aux tableurs du marché (§1). Une valeur hors référentiel — venue
+  d'un import — est réinjectée dans le menu au lieu d'être silencieusement
+  perdue.
+- **`libelleClassement()` applique le repli** : sous-genre s'il existe, genre
+  sinon. Un livre sans sous-genre n'est pas « non classé », il compte pour son
+  genre. Utilisé par le regroupement « Par sous-genre » de l'étagère et par le
+  palmarès du tableau de bord.
+
+Contrôle : `npx tsx scripts/verifier-genres.ts`.
+
 ## Couvertures importées
 
 Les deux catalogues laissent beaucoup de livres sans image, et le CSV

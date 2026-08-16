@@ -195,6 +195,24 @@ export function sousGenresDe(genre?: string | null): string[] {
   return g.cle === "inconnu" ? [] : (SOUS_GENRES[g.cle] ?? []);
 }
 
+/**
+ * Libellé de classement d'un livre : son sous-genre, à défaut son genre.
+ *
+ * Le sous-genre affine le genre, il ne le remplace pas. Un livre sans
+ * sous-genre n'est donc pas « non classé » : il compte pour son genre, tout
+ * simplement. Sans ce repli, les regroupements et les statistiques
+ * afficheraient une part écrasante de « Sans genre » qui ne voudrait rien
+ * dire — la plupart des livres importés n'ont pas de sous-genre.
+ */
+export function libelleClassement(
+  genre?: string | null,
+  sousGenre?: string | null,
+): string {
+  const sg = sousGenre?.trim();
+  if (sg) return sg;
+  return resoudreGenre(genre).libelle;
+}
+
 /** Repli neutre : une tranche sans genre reste dans la famille encre. */
 export const GENRE_INCONNU: Genre = {
   cle: "inconnu",

@@ -2,6 +2,7 @@ import { and, desc, eq, gte, isNotNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { lectures, livres, sessions } from "@/db/schema";
+import { libelleClassement } from "@/lib/genres";
 
 import { DERNIERE_SESSION, PAGE_ATTEINTE } from "./expressions";
 import {
@@ -37,7 +38,11 @@ export async function tableauDeBord(utilisateurId: string) {
       ),
 
     db
-      .select({ statut: livres.statut, genre: livres.genre })
+      .select({
+        statut: livres.statut,
+        genre: livres.genre,
+        sousGenre: livres.sousGenre,
+      })
       .from(livres)
       .where(eq(livres.utilisateurId, utilisateurId)),
 
@@ -87,6 +92,13 @@ export async function tableauDeBord(utilisateurId: string) {
       annee,
     ),
     genreDominant: dominant(tousLivres.map((l) => l.genre)),
+    // Classement fin : le sous-genre quand il existe, le genre sinon. Sans ce
+    // repli, la statistique ne porterait que sur la poignée de livres
+    // sous-classés et ne dirait rien de la bibliothèque.
+    topClassement: classement(
+      tousLivres.map((l) => libelleClassement(l.genre, l.sousGenre)),
+      4,
+    ),
     topAuteurs: classement(lusAnnee.map((t) => t.auteur)),
     tauxAbandon: tauxAbandon(lusTotal, abandonsTotal),
     abandonsAnnee: abandonsAnnee.length,

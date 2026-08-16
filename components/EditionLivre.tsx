@@ -3,18 +3,13 @@
 import { useMemo, useState } from "react";
 
 import { Bouton } from "@/components/ui/Bouton";
-import {
-  Champ,
-  ChampSuggestions,
-  Segments,
-  Selecteur,
-  ZoneTexte,
-} from "@/components/ui/Champ";
+import { Champ, Segments, Selecteur, ZoneTexte } from "@/components/ui/Champ";
+import { SelecteurSousGenre } from "@/components/ui/SelecteurSousGenre";
 // Le statut ne se change pas ici : il ouvre ou clôt une lecture, et vit donc
 // avec les pastilles de la fiche, pas dans un formulaire de métadonnées.
 import { Feuille } from "@/components/ui/Feuille";
 import { envoyer } from "@/lib/client-api";
-import { GENRES, sousGenresDe } from "@/lib/genres";
+import { GENRES } from "@/lib/genres";
 
 type Livre = {
   id: number;
@@ -83,9 +78,6 @@ export function EditionLivre({
     [],
   );
 
-  // Les suggestions suivent le genre choisi : proposer « Space opera » sous
-  // « Biographie » ne rendrait service à personne.
-  const sousGenres = useMemo(() => sousGenresDe(v.genre), [v.genre]);
 
   async function enregistrer() {
     if (!v.titre.trim()) {
@@ -210,7 +202,10 @@ export function EditionLivre({
           <Selecteur
             label="Genre"
             value={v.genre}
-            onChange={(e) => set("genre")(e.target.value)}
+            onChange={(e) =>
+              // Le sous-genre repart de zéro : il appartenait à l'ancien genre.
+              setV((x) => ({ ...x, genre: e.target.value, sousGenre: "" }))
+            }
           >
             <option value="">Sans genre</option>
             {genresTries.map((g) => (
@@ -219,13 +214,11 @@ export function EditionLivre({
               </option>
             ))}
           </Selecteur>
-          <ChampSuggestions
+          <SelecteurSousGenre
             id="sous-genre-edition"
-            label="Sous-genre"
-            value={v.sousGenre}
-            onChange={(e) => set("sousGenre")(e.target.value)}
-            suggestions={sousGenres}
-            placeholder={sousGenres[0] ?? "Libre"}
+            genre={v.genre}
+            valeur={v.sousGenre}
+            onChange={set("sousGenre")}
           />
         </div>
 

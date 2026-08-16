@@ -6,15 +6,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChoixCouverture } from "@/components/ChoixCouverture";
 import { Couverture } from "@/components/Couverture";
 import { Bouton } from "@/components/ui/Bouton";
-import {
-  Champ,
-  ChampSuggestions,
-  Segments,
-  Selecteur,
-} from "@/components/ui/Champ";
+import { Champ, Segments, Selecteur } from "@/components/ui/Champ";
+import { SelecteurSousGenre } from "@/components/ui/SelecteurSousGenre";
 import { IconeRecherche, IconeRetour } from "@/components/ui/Icones";
 import { envoyer } from "@/lib/client-api";
-import { GENRES, sousGenresDe } from "@/lib/genres";
+import { GENRES } from "@/lib/genres";
 import { envoyerCouverture, type CouverturePreparee } from "@/lib/image";
 import type { Resultat } from "@/lib/openlibrary";
 import { STATUTS } from "@/lib/validation";
@@ -132,10 +128,6 @@ export function AjoutLivre() {
     [],
   );
 
-  const sousGenres = useMemo(
-    () => sousGenresDe(brouillon?.genre),
-    [brouillon?.genre],
-  );
 
   function choisir(r: Resultat) {
     ouvrirFormulaire({
@@ -305,18 +297,11 @@ export function AjoutLivre() {
           </Selecteur>
         </div>
 
-        <ChampSuggestions
+        <SelecteurSousGenre
           id="sous-genre-ajout"
-          label="Sous-genre"
-          value={brouillon.sousGenre}
-          onChange={(e) => set("sousGenre")(e.target.value)}
-          suggestions={sousGenres}
-          placeholder={sousGenres[0] ?? "Facultatif"}
-          aide={
-            brouillon.genre
-              ? "Suggestions selon le genre, saisie libre acceptée"
-              : "Choisis un genre pour voir des suggestions"
-          }
+          genre={brouillon.genre}
+          valeur={brouillon.sousGenre}
+          onChange={set("sousGenre")}
         />
 
         <Segments

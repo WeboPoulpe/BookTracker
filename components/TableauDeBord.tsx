@@ -292,6 +292,23 @@ export function TableauDeBord({
                 </p>
               ) : null}
 
+              {/* Ce que tu lis vraiment : le sous-genre quand il est
+                  renseigné, le genre sinon. Masqué tant qu'il n'y a qu'une
+                  seule entrée, où il répéterait la ligne du dessus. */}
+              {s.topClassement.length > 1 ? (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {s.topClassement.map((c) => (
+                    <span
+                      key={c.valeur}
+                      className="chiffres rounded-pilule bg-rose-voile px-2.5 py-1 text-[12px] font-medium text-encre-70 ring-1 ring-rose-poudre"
+                    >
+                      {c.valeur}
+                      <span className="ml-1.5 text-encre-45">{c.total}</span>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
               {s.topAuteurs.length > 0 ? (
                 <ul className="mt-3.5 space-y-2">
                   {s.topAuteurs.map((a, i) => (

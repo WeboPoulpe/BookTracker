@@ -5,17 +5,18 @@ import { BoutonLien } from "@/components/ui/Bouton";
 import { EnTete, EtatVide } from "@/components/ui/EnTete";
 import { listerLivres, type LivreListe } from "@/db/requetes/livres";
 import { nombre } from "@/lib/format";
-import { resoudreGenre } from "@/lib/genres";
+import { libelleClassement, resoudreGenre } from "@/lib/genres";
 import { utilisateurCourantId } from "@/lib/utilisateur";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Étagère · Ma Bibliothèque" };
 
-type Groupement = "serie" | "genre" | "annee";
+type Groupement = "serie" | "genre" | "sousGenre" | "annee";
 
 const GROUPEMENTS: Array<{ cle: Groupement; libelle: string }> = [
   { cle: "serie", libelle: "Par série" },
   { cle: "genre", libelle: "Par genre" },
+  { cle: "sousGenre", libelle: "Par sous-genre" },
   { cle: "annee", libelle: "Par année" },
 ];
 
@@ -28,6 +29,11 @@ function grouper(livres: LivreListe[], par: Groupement) {
       cle = l.serieNom ?? "Hors série";
     } else if (par === "genre") {
       cle = resoudreGenre(l.genre).libelle;
+    } else if (par === "sousGenre") {
+      // Sans sous-genre, le livre compte pour son genre : le ranger dans un
+      // « Sans sous-genre » fourre-tout n'apprendrait rien, et ce serait le
+      // rayon le plus fourni de l'étagère.
+      cle = libelleClassement(l.genre, l.sousGenre);
     } else {
       cle = l.creeLe ? String(new Date(l.creeLe).getFullYear()) : "Sans date";
     }
@@ -55,9 +61,7 @@ export default async function Etagere({
   searchParams: Promise<{ par?: string }>;
 }) {
   const params = await searchParams;
-  const par: Groupement = (["serie", "genre", "annee"] as const).includes(
-    params.par as Groupement,
-  )
+  const par: Groupement = GROUPEMENTS.some((g) => g.cle === params.par)
     ? (params.par as Groupement)
     : "serie";
 
