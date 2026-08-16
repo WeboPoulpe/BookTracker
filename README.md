@@ -2,7 +2,8 @@
 
 Application de suivi de lecture. Next.js 15 · PWA mobile-first · Tailwind v4 · Neon Postgres.
 
-Le cahier des charges complet vit dans [SPECIFICATION.md](SPECIFICATION.md).
+Le cahier des charges complet vit dans [SPECIFICATION.md](SPECIFICATION.md),
+la mise en ligne dans [DEPLOIEMENT.md](DEPLOIEMENT.md).
 
 ## Démarrer
 
