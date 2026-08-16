@@ -11,13 +11,22 @@ import { utilisateurCourantId } from "@/lib/utilisateur";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Étagère · Ma Bibliothèque" };
 
-type Groupement = "serie" | "genre" | "sousGenre" | "annee";
+type Groupement = "annee" | "genre" | "sousGenre" | "auteur" | "serie";
 
 const GROUPEMENTS: Array<{ cle: Groupement; libelle: string }> = [
-  { cle: "serie", libelle: "Par série" },
+  { cle: "annee", libelle: "Par année" },
   { cle: "genre", libelle: "Par genre" },
   { cle: "sousGenre", libelle: "Par sous-genre" },
-  { cle: "annee", libelle: "Par année" },
+  { cle: "auteur", libelle: "Par auteur" },
+  { cle: "serie", libelle: "Par série" },
+];
+
+/** Rayons qui n'en sont pas : ils passent en fin d'étagère. */
+const FOURRE_TOUT = [
+  "Hors série",
+  "Sans genre",
+  "En cours de lecture",
+  "Auteur inconnu",
 ];
 
 function grouper(livres: LivreListe[], par: Groupement) {
@@ -27,6 +36,8 @@ function grouper(livres: LivreListe[], par: Groupement) {
     let cle: string;
     if (par === "serie") {
       cle = l.serieNom ?? "Hors série";
+    } else if (par === "auteur") {
+      cle = l.auteur?.trim() || "Auteur inconnu";
     } else if (par === "genre") {
       cle = resoudreGenre(l.genre).libelle;
     } else if (par === "sousGenre") {
@@ -35,7 +46,12 @@ function grouper(livres: LivreListe[], par: Groupement) {
       // rayon le plus fourni de l'étagère.
       cle = libelleClassement(l.genre, l.sousGenre);
     } else {
-      cle = l.creeLe ? String(new Date(l.creeLe).getFullYear()) : "Sans date";
+      // Année de *lecture*, pas d'ajout : un roman acheté en 2024 et lu en
+      // 2026 appartient à l'étagère 2026. Sans date de fin, le livre n'a pas
+      // encore d'année — il attend dans son propre rayon.
+      cle = l.derniereFin
+        ? String(new Date(`${l.derniereFin}T12:00:00`).getFullYear())
+        : "En cours de lecture";
     }
 
     const existant = groupes.get(cle);
@@ -44,12 +60,10 @@ function grouper(livres: LivreListe[], par: Groupement) {
   }
 
   return [...groupes.entries()].sort(([a], [b]) => {
-    // « Hors série » et « Sans genre » en dernier : ce sont des fourre-tout,
-    // pas des rayons.
-    const fourreTout = ["Hors série", "Sans genre", "Sans date"];
-    const fa = fourreTout.includes(a);
-    const fb = fourreTout.includes(b);
+    const fa = FOURRE_TOUT.includes(a);
+    const fb = FOURRE_TOUT.includes(b);
     if (fa !== fb) return fa ? 1 : -1;
+    // Les années à l'envers : l'année en cours en premier.
     if (par === "annee") return b.localeCompare(a);
     return a.localeCompare(b, "fr");
   });
@@ -61,9 +75,12 @@ export default async function Etagere({
   searchParams: Promise<{ par?: string }>;
 }) {
   const params = await searchParams;
+  // Par défaut, le premier de la liste : l'année de lecture est la lentille
+  // la plus parlante pour retrouver un livre — on se souvient mieux de
+  // « l'hiver dernier » que du genre qu'on lui avait attribué.
   const par: Groupement = GROUPEMENTS.some((g) => g.cle === params.par)
     ? (params.par as Groupement)
-    : "serie";
+    : GROUPEMENTS[0].cle;
 
   const utilisateurId = await utilisateurCourantId();
   const livres = await listerLivres(utilisateurId, { tri: "titre" });

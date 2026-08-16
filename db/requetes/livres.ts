@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 
 import {
+  DERNIERE_FIN,
   DERNIERE_SESSION,
   MINUTES_CUMULEES,
   PAGE_ATTEINTE,
@@ -25,6 +26,7 @@ import {
 const pageAtteinte = PAGE_ATTEINTE.as("page_atteinte");
 const minutesCumulees = MINUTES_CUMULEES.as("minutes_cumulees");
 const derniereSession = DERNIERE_SESSION.as("derniere_session");
+const derniereFin = DERNIERE_FIN.as("derniere_fin");
 
 const CHAMPS_LISTE = {
   id: livres.id,
@@ -50,6 +52,7 @@ const CHAMPS_LISTE = {
   pageAtteinte,
   minutesCumulees,
   derniereSession,
+  derniereFin,
 } as const;
 
 export type LivreListe = Awaited<ReturnType<typeof listerLivres>>[number];

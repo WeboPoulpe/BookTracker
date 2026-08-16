@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { changerStatut, majLivre, supprimerLivre } from "@/db/requetes/mutations";
 import { corpsValide, erreur } from "@/lib/api";
 import { utilisateurCourantId } from "@/lib/utilisateur";
-import { schemaLivre } from "@/lib/validation";
+import { schemaLivrePartiel } from "@/lib/validation";
 
 type Contexte = { params: Promise<{ id: string }> };
 
@@ -17,7 +17,10 @@ export async function PATCH(requete: Request, ctx: Contexte) {
   const id = await idDepuis(ctx);
   if (!id) return erreur("id_invalide", "Identifiant de livre invalide.");
 
-  const v = await corpsValide(requete, schemaLivre.partial());
+  // `schemaLivrePartiel` et non `schemaLivre.partial()` : le second laisse
+  // les `.default()` s'appliquer aux clés absentes et réécrit des champs que
+  // la requête ne mentionne pas.
+  const v = await corpsValide(requete, schemaLivrePartiel);
   if (!v.ok) return v.reponse;
 
   try {

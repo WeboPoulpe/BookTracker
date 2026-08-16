@@ -14,6 +14,7 @@ import { utilisateurCourantId } from "@/lib/utilisateur";
 import {
   schemaCitation,
   schemaLivre,
+  schemaLivrePartiel,
   schemaSession,
 } from "@/lib/validation";
 
@@ -33,9 +34,11 @@ const schemaEnveloppe = z.object({
   horodatage: z.number().int().positive(),
 });
 
-const schemaModification = schemaLivre
-  .partial()
-  .extend({ id: z.coerce.number().int().positive() });
+// Voir lib/validation.ts : `schemaLivre.partial()` laisserait les `.default()`
+// s'appliquer aux clés absentes et réécrirait des champs non transmis.
+const schemaModification = schemaLivrePartiel.extend({
+  id: z.coerce.number().int().positive(),
+});
 
 const schemaSuppression = z.object({
   id: z.coerce.number().int().positive(),

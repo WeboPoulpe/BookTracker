@@ -29,6 +29,19 @@ export const MINUTES_CUMULEES = sql<number | null>`(
   where le.livre_id = livres.id and le.fin is null
 )`;
 
+/**
+ * Date de fin de la dernière lecture terminée.
+ *
+ * C'est elle qui datte un livre sur l'étagère, et non sa date d'ajout : un
+ * roman acheté en 2024 mais lu en 2026 appartient à l'étagère 2026. La date
+ * d'ajout ne sert que de repli, pour les livres jamais terminés.
+ */
+export const DERNIERE_FIN = sql<string | null>`(
+  select max(le.fin)
+  from lectures le
+  where le.livre_id = livres.id and le.fin is not null
+)`;
+
 /** Date de la dernière session, toutes lectures confondues. */
 export const DERNIERE_SESSION = sql<string | null>`(
   select max(s.jour)
