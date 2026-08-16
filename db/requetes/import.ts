@@ -80,16 +80,37 @@ export async function importerLot(
           tome: entree.tome,
           avis: entree.avis,
           format: entree.format,
+          humeur: entree.humeur ?? null,
+          emoji: entree.emoji ?? null,
+          axeIntrigue: entree.axeIntrigue ?? null,
+          axePersonnages: entree.axePersonnages ?? null,
+          axeThemes: entree.axeThemes ?? null,
           // Couverture résolue après coup : la deviner depuis l'ISBN sans
           // vérifier produirait des images cassées en masse.
           couvertureUrl: null,
         })
         .returning({ id: livres.id, pages: livres.pages });
 
-      // L'historique ne se reconstruit que si Goodreads a livré une date.
-      // Inventer un début de lecture fausserait toutes les statistiques.
-      const aDesDates = entree.dateAjout || entree.dateLecture;
-      if (aDesDates && entree.statut !== "a_lire") {
+      /* Une ligne de `lectures` par période datée : c'est ainsi qu'une
+         relecture cesse d'écraser la première, et StoryGraph les encode
+         toutes dans sa colonne `Dates Read`. */
+      if (entree.periodes?.length) {
+        await db.insert(lectures).values(
+          entree.periodes.map((p) => ({
+            livreId: livre.id,
+            debut: p.debut,
+            fin: p.fin,
+            abandonnee: entree.statut === "abandonne",
+            pageFinale: entree.statut === "lu" ? livre.pages : null,
+          })),
+        );
+      } else if (
+        // À défaut de périodes, l'historique ne se reconstruit que si le
+        // catalogue a livré une date. Inventer un début de lecture
+        // fausserait toutes les statistiques.
+        (entree.dateAjout || entree.dateLecture) &&
+        entree.statut !== "a_lire"
+      ) {
         await db.insert(lectures).values({
           livreId: livre.id,
           debut: entree.dateAjout,

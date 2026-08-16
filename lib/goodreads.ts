@@ -1,6 +1,6 @@
 import Papa from "papaparse";
 
-import { extraireSerie } from "./openlibrary";
+import { decomposerTitre } from "./titres";
 import type { Statut } from "@/db/schema";
 
 /**
@@ -27,8 +27,19 @@ export type LivreImporte = {
   format: "papier" | "ebook" | "audio";
   dateAjout: string | null;
   dateLecture: string | null;
-  /** Nombre de lectures déclaré par Goodreads — sert à créer l'historique */
+  /** Nombre de lectures déclaré par le catalogue — sert à créer l'historique */
   nombreLectures: number;
+
+  /* Champs qu'apporte StoryGraph et que Goodreads ignore. Facultatifs, pour
+     que les deux parseurs produisent le même type sans que Goodreads ait à
+     inventer des valeurs. */
+  /** Périodes de lecture datées — permet de restituer les relectures */
+  periodes?: Array<{ debut: string | null; fin: string }>;
+  humeur?: string | null;
+  emoji?: string | null;
+  axeIntrigue?: number | null;
+  axePersonnages?: number | null;
+  axeThemes?: number | null;
 };
 
 export type Rejet = { ligne: number; titre: string; motif: string };
@@ -140,7 +151,7 @@ export function analyser(csv: string): Analyse {
       return;
     }
 
-    const { titre, serie, tome } = extraireSerie(titreBrut);
+    const { titre, serie, tome } = decomposerTitre(titreBrut);
 
     // My Rating = 0 signifie « non noté », pas « zéro étoile ».
     // Confondre les deux fabrique une bibliothèque entière notée 0/5.

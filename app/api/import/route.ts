@@ -24,6 +24,22 @@ const schemaLigne = z.object({
   dateAjout: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   dateLecture: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   nombreLectures: z.number().int().min(0).max(1000),
+
+  // Apports de StoryGraph, absents d'un export Goodreads.
+  periodes: z
+    .array(
+      z.object({
+        debut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+        fin: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }),
+    )
+    .max(50)
+    .optional(),
+  humeur: z.string().trim().max(60).nullish(),
+  emoji: z.string().trim().max(8).nullish(),
+  axeIntrigue: z.number().int().min(0).max(5).nullish(),
+  axePersonnages: z.number().int().min(0).max(5).nullish(),
+  axeThemes: z.number().int().min(0).max(5).nullish(),
 });
 
 // Plafond par requête : le client découpe et affiche sa progression, ce qui

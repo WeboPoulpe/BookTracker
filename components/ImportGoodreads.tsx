@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { Bouton } from "@/components/ui/Bouton";
-import { analyser, type Analyse } from "@/lib/goodreads";
+import { analyserCsv, NOM_FORMAT, type Analyse } from "@/lib/import-csv";
 import { LIBELLE_STATUT, nombre, pluriel } from "@/lib/format";
 
 type Etape = "attente" | "apercu" | "envoi" | "fini";
@@ -26,12 +26,19 @@ export function ImportGoodreads() {
     setErreur(null);
     try {
       const texte = await fichier.text();
-      const a = analyser(texte);
+      const a = analyserCsv(texte);
+
+      if (a.format === "inconnu") {
+        setErreur(
+          "Format non reconnu. Attendu : un export Goodreads ou StoryGraph.",
+        );
+        return;
+      }
 
       if (a.livres.length === 0) {
         setErreur(
           a.colonnesManquantes.length
-            ? `Ce fichier ne ressemble pas à un export Goodreads : colonnes absentes (${a.colonnesManquantes.join(", ")}).`
+            ? `Colonnes absentes du fichier : ${a.colonnesManquantes.join(", ")}.`
             : "Aucune ligne exploitable dans ce fichier.",
         );
         return;
@@ -177,7 +184,10 @@ export function ImportGoodreads() {
     return (
       <div className="px-5 pt-4 pb-10">
         <div className="carte p-4">
-          <p className="chiffres text-[15px]">
+          <p className="text-[11.5px] font-bold tracking-[0.14em] text-rose-fonce uppercase">
+            Export {NOM_FORMAT[analyse.format]}
+          </p>
+          <p className="chiffres mt-1 text-[15px]">
             <span className="font-semibold">
               {nombre(analyse.livres.length)}
             </span>{" "}
@@ -191,6 +201,25 @@ export function ImportGoodreads() {
               </>
             ) : null}
           </p>
+
+          {/* Les approximations sont annoncées avant confirmation, jamais
+              découvertes après coup dans les statistiques. */}
+          {analyse.datesApprochees > 0 ? (
+            <p className="mt-2 text-[12.5px] leading-relaxed text-[#7A5310]">
+              {pluriel(analyse.datesApprochees, "livre lu")} sans date de
+              lecture : leur date d&apos;ajout fera foi, sans quoi ils
+              n&apos;apparaîtraient dans aucune statistique.
+            </p>
+          ) : null}
+
+          {analyse.auteursMultiples > 0 ? (
+            <p className="mt-2 text-[12.5px] leading-relaxed text-encre-45">
+              {pluriel(analyse.auteursMultiples, "livre")} à plusieurs auteurs :
+              le premier est retenu. StoryGraph place parfois la traductrice
+              devant — à corriger sur la fiche.
+            </p>
+          ) : null}
+
           {analyse.colonnesManquantes.length > 0 ? (
             <p className="mt-2 text-[13px] text-[#7A5310]">
               Colonnes absentes, ces données ne remonteront pas :{" "}
