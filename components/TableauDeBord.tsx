@@ -7,6 +7,7 @@ import { Couverture } from "@/components/Couverture";
 import { BoutonLien } from "@/components/ui/Bouton";
 import { Compteur } from "@/components/ui/Compteur";
 import { EtatVide, Section } from "@/components/ui/EnTete";
+import { Colonnes, type Barre } from "@/components/ui/Graphiques";
 import type { Accueil } from "@/db/requetes/stats";
 import {
   RESSORT,
@@ -19,7 +20,6 @@ import {
 import { depuis, nombre, pluriel, pourcent, progression } from "@/lib/format";
 
 const LienAnime = motion.create(Link);
-const MOIS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 
 /**
  * Anneau de progression vers l'objectif annuel.
@@ -129,8 +129,14 @@ export function TableauDeBord({
   const atteint = stats.livresLus >= objectif && objectif > 0;
   const restants = Math.max(0, objectif - stats.livresLus);
 
-  const maxMois = Math.max(1, ...stats.serieTemporelle.map((m) => m.livres));
   const moisCourant = new Date().getMonth();
+
+  const rythme: Barre[] = stats.serieTemporelle.map((m) => ({
+    cle: m.cle,
+    libelle: m.libelle.slice(0, 1).toUpperCase(),
+    valeur: m.livres,
+    href: `/bibliotheque?annee=${annee}&mois=${m.cle}&retour=${encodeURIComponent(`/statistiques?annee=${annee}`)}`,
+  }));
 
   return (
     <motion.div
@@ -313,49 +319,29 @@ export function TableauDeBord({
       {stats.livresLus > 0 ? (
         <motion.div variants={elementCascade}>
           <Section titre="Ton rythme">
-            <Link
-              href={`/statistiques?annee=${annee}`}
-              className="block rounded-carte bg-white/85 p-4 shadow-carte ring-1 ring-white/70 backdrop-blur-sm"
-            >
-              <div className="flex h-16 items-end gap-1.5">
-                {stats.serieTemporelle.map((m, i) => (
-                  <div
-                    key={m.cle}
-                    className="flex flex-1 flex-col items-center gap-1"
-                  >
-                    <div className="flex w-full flex-1 items-end">
-                      <motion.div
-                        className="w-full rounded-t-[3px]"
-                        style={{
-                          backgroundColor:
-                            i === moisCourant ? "#75294A" : "#BC5C85",
-                          opacity: m.livres > 0 ? 1 : 0.2,
-                        }}
-                        initial={{ height: 0 }}
-                        animate={{
-                          height: `${Math.max((m.livres / maxMois) * 100, m.livres > 0 ? 8 : 4)}%`,
-                        }}
-                        transition={{ ...RESSORT, delay: 0.2 + i * 0.03 }}
-                      />
-                    </div>
-                    <span
-                      className={`text-[9px] leading-none ${
-                        i === moisCourant
-                          ? "font-bold text-rose-fonce"
-                          : "text-encre-45"
-                      }`}
-                    >
-                      {MOIS[i]}
-                    </span>
-                  </div>
-                ))}
-              </div>
+            <div className="rounded-carte bg-white/85 p-4 shadow-carte ring-1 ring-white/70 backdrop-blur-sm">
+              {/* Même composant que l'écran Statistiques : une seconde
+                  implémentation des colonnes avait perdu ses barres, faute
+                  de hauteur explicite sur la zone de tracé. */}
+              <Colonnes
+                barres={rythme}
+                unite="livre"
+                surligne={String(moisCourant + 1)}
+                hauteur="h-16"
+                valeurs={false}
+              />
               <p className="chiffres mt-2.5 text-[12px] text-encre-45">
                 {stats.moyenneParMois !== null
                   ? `${stats.moyenneParMois.toLocaleString("fr-FR")} livres par mois en moyenne`
                   : null}
               </p>
-            </Link>
+              <Link
+                href={`/statistiques?annee=${annee}`}
+                className="mt-1 inline-block text-[12px] font-semibold text-rose-fonce"
+              >
+                Voir le détail
+              </Link>
+            </div>
           </Section>
         </motion.div>
       ) : null}

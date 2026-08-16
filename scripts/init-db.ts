@@ -27,10 +27,18 @@ async function main() {
   const id = process.env.UTILISATEUR_LOCAL_ID ?? "local";
   const email = process.env.UTILISATEUR_LOCAL_EMAIL ?? "local@localhost";
 
+  const nom = process.env.UTILISATEUR_LOCAL_NOM ?? "Morgane";
+
+  // `onConflictDoUpdate` et non `DoNothing` : relancer le script après avoir
+  // changé le nom dans .env.local doit effectivement le changer en base,
+  // sinon l'écart entre configuration et données passe inaperçu.
   await db
     .insert(schema.utilisateurs)
-    .values({ id, email, nom: "maxence" })
-    .onConflictDoNothing({ target: schema.utilisateurs.id });
+    .values({ id, email, nom })
+    .onConflictDoUpdate({
+      target: schema.utilisateurs.id,
+      set: { email, nom },
+    });
 
   const u = await db.select().from(schema.utilisateurs);
   console.log("\nUtilisateurs :", u);

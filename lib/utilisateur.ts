@@ -43,7 +43,7 @@ async function garantirUtilisateurLocal(id: string) {
     .values({
       id,
       email: process.env.UTILISATEUR_LOCAL_EMAIL ?? "local@localhost",
-      nom: "maxence",
+      nom: process.env.UTILISATEUR_LOCAL_NOM ?? "Morgane",
     })
     .onConflictDoNothing({ target: utilisateurs.id });
   localGaranti = true;

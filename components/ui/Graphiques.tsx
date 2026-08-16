@@ -133,11 +133,23 @@ export function Colonnes({
   barres,
   unite,
   surligne,
+  hauteur = "h-24",
+  valeurs = true,
 }: {
   barres: Barre[];
   unite: string;
   /** Clé mise en avant — le mois consulté, par exemple */
   surligne?: string | null;
+  /**
+   * Hauteur de la zone de tracé, en classe Tailwind.
+   *
+   * Elle doit rester explicite : le conteneur est en `items-end`, donc une
+   * colonne sans hauteur propre se réduit à celle de son libellé et les
+   * barres disparaissent. Un `flex-1` n'y suffit pas.
+   */
+  hauteur?: string;
+  /** Chiffre au-dessus de chaque colonne ; encombrant en aperçu réduit */
+  valeurs?: boolean;
 }) {
   const plafond = Math.max(1, ...barres.map((b) => b.valeur));
 
@@ -151,17 +163,21 @@ export function Colonnes({
             <Enveloppe
               key={b.cle}
               href={b.valeur > 0 ? b.href : undefined}
-              titre={`${b.libelle} — ${nombre(b.valeur)} ${unite}`}
+              titre={`${b.libelle} — ${nombre(b.valeur)} ${unite}${
+                b.valeur > 1 && !unite.endsWith("s") ? "s" : ""
+              }`}
             >
-              <div className="flex min-w-[26px] flex-1 flex-col items-center gap-1">
-                <span
-                  className={`chiffres text-[10px] leading-none ${
-                    b.valeur > 0 ? "text-encre-70" : "text-transparent"
-                  }`}
-                >
-                  {b.valeur > 0 ? nombre(b.valeur) : "0"}
-                </span>
-                <div className="flex h-24 w-full items-end">
+              <div className="flex min-w-[22px] flex-1 flex-col items-center gap-1">
+                {valeurs ? (
+                  <span
+                    className={`chiffres text-[10px] leading-none ${
+                      b.valeur > 0 ? "text-encre-70" : "text-transparent"
+                    }`}
+                  >
+                    {b.valeur > 0 ? nombre(b.valeur) : "0"}
+                  </span>
+                ) : null}
+                <div className={`flex w-full items-end ${hauteur}`}>
                   <motion.div
                     className="w-full rounded-t-[4px]"
                     style={{
