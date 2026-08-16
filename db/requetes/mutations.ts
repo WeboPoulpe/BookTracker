@@ -1,7 +1,8 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+﻿import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { citations, lectures, livres, series, sessions } from "@/db/schema";
+import { aujourdhui } from "@/lib/date";
 import type { LivreValide } from "@/lib/validation";
 
 /** Trouve la série par son nom, ou la crée. Insensible à la casse. */
@@ -61,12 +62,12 @@ export async function creerLivre(utilisateurId: string, valeurs: LivreValide) {
   if (livre.statut === "en_cours") {
     await db.insert(lectures).values({
       livreId: livre.id,
-      debut: new Date().toISOString().slice(0, 10),
+      debut: aujourdhui(),
     });
   } else if (livre.statut === "lu") {
     await db.insert(lectures).values({
       livreId: livre.id,
-      fin: new Date().toISOString().slice(0, 10),
+      fin: aujourdhui(),
       pageFinale: livre.pages ?? null,
     });
   }
@@ -116,7 +117,7 @@ export async function changerStatut(
 
   if (!livre) return null;
 
-  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const jour = aujourdhui();
 
   const [ouverte] = await db
     .select()
@@ -126,7 +127,7 @@ export async function changerStatut(
     .limit(1);
 
   if (statut === "en_cours" && !ouverte) {
-    await db.insert(lectures).values({ livreId: id, debut: aujourdhui });
+    await db.insert(lectures).values({ livreId: id, debut: jour });
   }
 
   if (statut === "lu" || statut === "abandonne") {
@@ -142,7 +143,7 @@ export async function changerStatut(
       : await db
           .select()
           .from(lectures)
-          .where(and(eq(lectures.livreId, id), eq(lectures.fin, aujourdhui)))
+          .where(and(eq(lectures.livreId, id), eq(lectures.fin, jour)))
           .orderBy(desc(lectures.id))
           .limit(1);
 
@@ -152,7 +153,7 @@ export async function changerStatut(
       await db
         .update(lectures)
         .set({
-          fin: aujourdhui,
+          fin: jour,
           abandonnee: statut === "abandonne",
           pageFinale: statut === "lu" ? (livre.pages ?? null) : null,
         })
@@ -161,7 +162,7 @@ export async function changerStatut(
       await db.insert(lectures).values({
         livreId: id,
         debut: null,
-        fin: aujourdhui,
+        fin: jour,
         abandonnee: statut === "abandonne",
         pageFinale: statut === "lu" ? (livre.pages ?? null) : null,
       });
@@ -202,7 +203,7 @@ export async function enregistrerSession(
 
   if (!livre) return null;
 
-  const jour = entree.jour ?? new Date().toISOString().slice(0, 10);
+  const jour = entree.jour ?? aujourdhui();
 
   let [lecture] = await db
     .select()

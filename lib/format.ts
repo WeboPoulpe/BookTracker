@@ -96,6 +96,7 @@ export function finEstimee(
   pagesRestantes: number,
   pagesParJour: number,
 ): Date | null {
+  // Affichage seulement : jamais écrit en base, donc le fuseau du poste suffit.
   if (pagesRestantes <= 0 || pagesParJour <= 0) return null;
   const jours = Math.ceil(pagesRestantes / pagesParJour);
   if (jours > 3650) return null;

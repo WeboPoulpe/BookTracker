@@ -36,6 +36,7 @@ compilation. Sans elle, le build échoue.
 | Variable | Valeur | Requise |
 |---|---|---|
 | `DATABASE_URL` | Copier depuis ton `.env.local` local | **oui** |
+| `FUSEAU_HORAIRE` | `Europe/Paris` | non (défaut : `Europe/Paris`) |
 | `NEXT_PUBLIC_MODE_LOCAL` | `true` | non (défaut : `true`) |
 | `UTILISATEUR_LOCAL_ID` | `local` | non (défaut : `local`) |
 | `UTILISATEUR_LOCAL_EMAIL` | `maxence@webomax.fr` | non |

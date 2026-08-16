@@ -2,6 +2,7 @@ import { and, count, desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { livres } from "@/db/schema";
+import { anneeCourante } from "@/lib/date";
 
 import { DERNIERE_SESSION, PAGE_ATTEINTE } from "./expressions";
 import { statistiques, type Statistiques } from "./statistiques";
@@ -35,7 +36,7 @@ export type Accueil = {
 };
 
 export async function tableauDeBord(utilisateurId: string): Promise<Accueil> {
-  const annee = new Date().getFullYear();
+  const annee = anneeCourante();
 
   const [stats, enCours, [compte]] = await Promise.all([
     statistiques(utilisateurId, { annee, mois: null }),

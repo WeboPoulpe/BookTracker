@@ -119,17 +119,18 @@ function phrase(livres: number, objectif: number, restants: number): string {
 export function TableauDeBord({
   donnees,
   objectif,
+  moisCourant,
 }: {
   donnees: Accueil;
   objectif: number;
+  /** Index 0–11, calculé sur le serveur dans le fuseau de référence */
+  moisCourant: number;
 }) {
   const { stats, enCours, annee, total } = donnees;
 
   const ratio = objectif > 0 ? Math.min(1, stats.livresLus / objectif) : 0;
   const atteint = stats.livresLus >= objectif && objectif > 0;
   const restants = Math.max(0, objectif - stats.livresLus);
-
-  const moisCourant = new Date().getMonth();
 
   const rythme: Barre[] = stats.serieTemporelle.map((m) => ({
     cle: m.cle,
@@ -147,6 +148,24 @@ export function TableauDeBord({
     >
       {/* ── Objectif, en tête d'écran ──────────────────────────────────── */}
       <motion.div variants={elementCascade}>
+        {objectif <= 0 ? (
+          // Sans objectif, l'anneau afficherait « / 0 » et une jauge vide.
+          // On garde le décompte, qui reste la donnée intéressante.
+          <div className="rounded-feuille bg-white/85 p-4 text-center shadow-carte ring-1 ring-white/70 backdrop-blur-sm">
+            <p className="chiffres font-display text-[2.75rem] leading-none font-bold text-encre">
+              <Compteur valeur={stats.livresLus} />
+            </p>
+            <p className="mt-1.5 text-[13px] font-medium text-encre-45">
+              {stats.livresLus > 1 ? "livres lus" : "livre lu"} en {annee}
+            </p>
+            <Link
+              href="/reglages"
+              className="mt-2 inline-block text-[12px] font-semibold text-rose-fonce"
+            >
+              Se fixer un objectif
+            </Link>
+          </div>
+        ) : (
         <div className="flex items-center gap-4 rounded-feuille bg-white/85 p-4 shadow-carte ring-1 ring-white/70 backdrop-blur-sm">
           <Anneau
             ratio={ratio}
@@ -187,6 +206,7 @@ export function TableauDeBord({
             )}
           </div>
         </div>
+        )}
       </motion.div>
 
       {/* ── En cours ───────────────────────────────────────────────────── */}

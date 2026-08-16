@@ -1,8 +1,9 @@
 import Link from "next/link";
 
+import { ObjectifAnnuel } from "@/components/ObjectifAnnuel";
 import { EnTete } from "@/components/ui/EnTete";
 import { compterParStatut } from "@/db/requetes/livres";
-import { nombre, pluriel } from "@/lib/format";
+import { pluriel } from "@/lib/format";
 import { MODE_LOCAL, utilisateurCourant } from "@/lib/utilisateur";
 
 export const dynamic = "force-dynamic";
@@ -64,17 +65,7 @@ export default async function Reglages() {
             Lecture
           </h2>
           <div className="carte overflow-hidden">
-            <div className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-3">
-              <span>
-                <span className="block text-[15px]">Objectif annuel</span>
-                <span className="block text-[13px] text-encre-45">
-                  Livres à lire cette année
-                </span>
-              </span>
-              <span className="chiffres text-[17px] font-semibold">
-                {nombre(utilisateur?.objectifAnnuel ?? 30)}
-              </span>
-            </div>
+            <ObjectifAnnuel valeur={utilisateur?.objectifAnnuel ?? 30} />
           </div>
         </section>
 

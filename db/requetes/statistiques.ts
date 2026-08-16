@@ -2,6 +2,7 @@ import { and, eq, isNotNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { lectures, livres } from "@/db/schema";
+import { anneeCourante, moisCourant } from "@/lib/date";
 import { libelleClassement, resoudreGenre } from "@/lib/genres";
 
 /**
@@ -152,10 +153,9 @@ export async function statistiques(
   const moisCouverts = (() => {
     if (portee.mois !== null) return 1;
     if (portee.annee !== null) {
-      const maintenant = new Date();
-      return portee.annee === maintenant.getFullYear()
-        ? maintenant.getMonth() + 1
-        : 12;
+      // Fuseau de référence : en UTC, l'année en cours basculerait une ou
+      // deux heures trop tôt, et la moyenne mensuelle avec elle.
+      return portee.annee === anneeCourante() ? moisCourant() + 1 : 12;
     }
     if (anneesDisponibles.length === 0) return 0;
     const dates = terminees.map((l) => l.fin!).sort();

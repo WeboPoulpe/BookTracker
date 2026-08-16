@@ -158,6 +158,22 @@ citations, et le livre lui-même.
   serveur sous forme de référence, pas de valeur : `AXES.map` y échoue avec
   « is not a function ». D'où `lib/notation.ts`.
 
+## Dates et fuseau horaire
+
+**Tout ce qui manipule « aujourd'hui » passe par `lib/date.ts`**, calé sur
+`Europe/Paris` (surchargeable via `FUSEAU_HORAIRE`).
+
+En local, `new Date()` suit le fuseau du poste et tout paraît juste. En
+production la fonction tourne en UTC, et ce n'est pas qu'un détail
+d'affichage :
+
+- une page enregistrée à 1 h du matin serait **datée de la veille** ;
+- le 1ᵉʳ janvier à 00 h 30, l'accueil afficherait encore l'année précédente ;
+- la salutation de l'accueil serait fausse huit heures par jour.
+
+Contrôle : `npx tsx scripts/verifier-fuseau.ts` force le processus en UTC et
+vérifie les bascules, changements d'heure et années bissextiles compris.
+
 ## Accueil et statistiques : une seule source
 
 **L'accueil et l'écran Statistiques appellent la même fonction**

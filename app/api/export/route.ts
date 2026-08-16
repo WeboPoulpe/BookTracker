@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { citations, lectures, livres, series, sessions } from "@/db/schema";
 import { erreur } from "@/lib/api";
+import { aujourdhui } from "@/lib/date";
 import { versCsvGoodreads } from "@/lib/goodreads";
 import { utilisateurCourantId } from "@/lib/utilisateur";
 
@@ -18,7 +19,7 @@ export const maxDuration = 60;
  */
 export async function GET(requete: Request) {
   const format = new URL(requete.url).searchParams.get("format") ?? "json";
-  const jour = new Date().toISOString().slice(0, 10);
+  const jour = aujourdhui();
 
   try {
     const utilisateurId = await utilisateurCourantId();

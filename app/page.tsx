@@ -3,18 +3,23 @@ import Link from "next/link";
 import { TableauDeBord } from "@/components/TableauDeBord";
 import { EnTete } from "@/components/ui/EnTete";
 import { IconeReglages } from "@/components/ui/Icones";
+import { heureLocale, moisCourant } from "@/lib/date";
 import { tableauDeBord } from "@/db/requetes/stats";
 import { utilisateurCourant } from "@/lib/utilisateur";
 
 export const dynamic = "force-dynamic";
 
-const BONJOUR = ["Bonne nuit", "Bonjour", "Bon après-midi", "Bonsoir"];
-
-function salutation(heure = new Date().getHours()) {
-  if (heure < 6) return BONJOUR[0];
-  if (heure < 12) return BONJOUR[1];
-  if (heure < 18) return BONJOUR[2];
-  return BONJOUR[3];
+/**
+ * Salutation selon l'heure — celle de la lectrice, pas celle du serveur.
+ *
+ * Calculée côté serveur, `new Date().getHours()` renverrait l'heure UTC en
+ * production : la salutation serait fausse huit heures par jour.
+ */
+function salutation(heure = heureLocale()) {
+  if (heure < 6) return "Bonne nuit";
+  if (heure < 12) return "Bonjour";
+  if (heure < 18) return "Bon après-midi";
+  return "Bonsoir";
 }
 
 export default async function Accueil() {
@@ -45,6 +50,9 @@ export default async function Accueil() {
       <TableauDeBord
         donnees={donnees}
         objectif={utilisateur?.objectifAnnuel ?? 30}
+        // Calculé sur le serveur, dans le fuseau de référence : le laisser au
+        // client ferait dépendre le mois surligné du réglage de l'appareil.
+        moisCourant={moisCourant()}
       />
     </>
   );
