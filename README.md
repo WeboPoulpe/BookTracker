@@ -139,6 +139,26 @@ appliqué par `avecDelai` dans `lib/recherche.ts`.
 > une inspection TLS locale. La BnF n'est pas affectée, et l'app fonctionne
 > quand même : c'est précisément ce que la double source garantit.
 
+## Couvertures importées
+
+Les deux catalogues laissent beaucoup de livres sans image, et le CSV
+Goodreads n'en apporte aucune. On peut donc en fournir une soi-même, depuis
+l'écran d'ajout comme depuis la fiche d'un livre.
+
+- **Compression dans le navigateur** (`lib/image.ts`) : 600 × 900 px maximum,
+  WebP si disponible, sinon JPEG. Une photo de téléphone passe de ~4 Mo à
+  ~40 ko. L'orientation EXIF est appliquée, sinon une couverture
+  photographiée en portrait s'affiche couchée.
+- **Table `couvertures` séparée**, et non une colonne de `livres` : l'image
+  serait rapatriée par chaque requête de liste alors que les écrans n'ont
+  besoin que d'une URL.
+- **Servies par `/api/couverture/[id]?v=…`** en cache immuable. L'URL porte
+  un numéro de version régénéré à chaque remplacement — le cache ne peut donc
+  jamais servir une image périmée, et un ETag évite de relire la base.
+- Stockage en base64 plutôt qu'en `bytea` : le driver HTTP de Neon manipule
+  le binaire de façon fragile, et 33 % de volume en plus sur 40 ko est
+  négligeable.
+
 ## Hors ligne
 
 L'app fonctionne **principalement en ligne**. Le hors ligne est un filet, pas

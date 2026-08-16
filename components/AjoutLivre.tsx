@@ -3,12 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { ChoixCouverture } from "@/components/ChoixCouverture";
 import { Couverture } from "@/components/Couverture";
 import { Bouton } from "@/components/ui/Bouton";
 import { Champ, Segments, Selecteur } from "@/components/ui/Champ";
-import { IconeRecherche } from "@/components/ui/Icones";
+import { IconeRecherche, IconeRetour } from "@/components/ui/Icones";
 import { envoyer } from "@/lib/client-api";
 import { GENRES } from "@/lib/genres";
+import { envoyerCouverture, type CouverturePreparee } from "@/lib/image";
 import type { Resultat } from "@/lib/openlibrary";
 import { STATUTS } from "@/lib/validation";
 import { LIBELLE_STATUT } from "@/lib/format";
@@ -49,10 +51,38 @@ export function AjoutLivre() {
   const [toutesEnEchec, setToutesEnEchec] = useState(false);
 
   const [brouillon, setBrouillon] = useState<Brouillon | null>(null);
+  const [couverture, setCouverture] = useState<CouverturePreparee | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
   const annulation = useRef<AbortController | null>(null);
+
+  /**
+   * Le passage à l'étape formulaire empile une entrée d'historique.
+   *
+   * Sans ça, le geste de retour du navigateur quitte la page d'ajout et fait
+   * perdre la recherche — alors que l'utilisateur voulait seulement revenir
+   * à la liste des résultats. Sur mobile, c'est le geste qu'on fait en
+   * premier, bien avant de chercher un bouton.
+   */
+  useEffect(() => {
+    const retour = () => setBrouillon(null);
+    window.addEventListener("popstate", retour);
+    return () => window.removeEventListener("popstate", retour);
+  }, []);
+
+  function ouvrirFormulaire(depuis: Brouillon) {
+    setBrouillon(depuis);
+    setCouverture(null);
+    setErreur(null);
+    window.history.pushState({ etape: "formulaire" }, "");
+  }
+
+  /** Repasse par l'historique pour ne pas y laisser une entrée orpheline. */
+  function revenirAuxResultats() {
+    if (window.history.state?.etape === "formulaire") window.history.back();
+    else setBrouillon(null);
+  }
 
   // Anti-rebond : sans lui, chaque frappe part chez Open Library
   useEffect(() => {
@@ -96,7 +126,7 @@ export function AjoutLivre() {
   );
 
   function choisir(r: Resultat) {
-    setBrouillon({
+    ouvrirFormulaire({
       ...VIDE,
       titre: r.titre,
       auteur: r.auteur,
@@ -107,7 +137,6 @@ export function AjoutLivre() {
       serie: r.serie ?? "",
       tome: r.tome != null ? String(r.tome) : "",
     });
-    setErreur(null);
   }
 
   async function enregistrer() {
@@ -146,11 +175,29 @@ export function AjoutLivre() {
       // Le livre n'a pas encore d'identifiant : il n'existera qu'à la
       // reprise. On renvoie vers la bibliothèque plutôt que vers une fiche
       // qui n'existe pas.
+      if (couverture) {
+        setErreur(
+          "Livre mis en attente — la couverture devra être ajoutée une fois reconnectée.",
+        );
+      }
       router.push("/bibliotheque");
       return;
     }
 
-    router.push(`/bibliotheque/${r.data.livre.id}`);
+    const id = r.data.livre.id;
+
+    // La couverture part après le livre : elle a besoin de son identifiant.
+    // Un échec ici ne doit pas faire croire que l'ajout a raté — le livre
+    // existe, il lui manque juste une image, qu'on remet depuis sa fiche.
+    if (couverture) {
+      try {
+        await envoyerCouverture(id, couverture.blob);
+      } catch (e) {
+        console.error("Couverture non envoyée :", e);
+      }
+    }
+
+    router.push(`/bibliotheque/${id}`);
     router.refresh();
   }
 
@@ -160,30 +207,44 @@ export function AjoutLivre() {
       setBrouillon((b) => (b ? { ...b, [champ]: v } : b));
 
     return (
-      <div className="space-y-4 px-5 pt-4 pb-10">
-        <div className="flex gap-3">
-          <Couverture
-            titre={brouillon.titre || "Sans titre"}
-            auteur={brouillon.auteur}
-            url={brouillon.couvertureUrl || null}
-            genre={brouillon.genre}
-            className="h-32 w-[86px] shrink-0"
-            sizes="86px"
+      <div className="space-y-4 px-5 pt-1 pb-10">
+        {/* Retour explicite en haut, en plus du geste système : sur desktop
+            il n'y a pas de geste, et la flèche indique où l'on est. */}
+        <button
+          type="button"
+          onClick={revenirAuxResultats}
+          disabled={envoi}
+          className="-ml-1.5 inline-flex min-h-[44px] items-center gap-1 text-[15px] font-medium text-encre-70"
+        >
+          <IconeRetour className="h-5 w-5" />
+          {resultats.length > 0 ? "Résultats" : "Recherche"}
+        </button>
+
+        <ChoixCouverture
+          titre={brouillon.titre}
+          auteur={brouillon.auteur}
+          genre={brouillon.genre}
+          urlActuelle={brouillon.couvertureUrl || null}
+          onChoisie={setCouverture}
+          onRetiree={() => {
+            setCouverture(null);
+            set("couvertureUrl")("");
+          }}
+        />
+
+        <div className="space-y-3">
+          <Champ
+            label="Titre"
+            value={brouillon.titre}
+            onChange={(e) => set("titre")(e.target.value)}
+            placeholder="Le Palais des vents"
           />
-          <div className="min-w-0 flex-1 space-y-3">
-            <Champ
-              label="Titre"
-              value={brouillon.titre}
-              onChange={(e) => set("titre")(e.target.value)}
-              placeholder="Le Palais des vents"
-            />
-            <Champ
-              label="Auteur"
-              value={brouillon.auteur}
-              onChange={(e) => set("auteur")(e.target.value)}
-              placeholder="Lucinda Riley"
-            />
-          </div>
+          <Champ
+            label="Auteur"
+            value={brouillon.auteur}
+            onChange={(e) => set("auteur")(e.target.value)}
+            placeholder="Lucinda Riley"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -261,7 +322,7 @@ export function AjoutLivre() {
         <div className="flex gap-2 pt-1">
           <Bouton
             variante="fantome"
-            onClick={() => setBrouillon(null)}
+            onClick={revenirAuxResultats}
             disabled={envoi}
           >
             Retour
@@ -393,7 +454,7 @@ export function AjoutLivre() {
         <Bouton
           variante={resultats.length === 0 ? "principal" : "doux"}
           taille="lg"
-          onClick={() => setBrouillon({ ...VIDE, titre: requete.trim() })}
+          onClick={() => ouvrirFormulaire({ ...VIDE, titre: requete.trim() })}
         >
           Saisir à la main
         </Bouton>

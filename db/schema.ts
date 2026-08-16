@@ -138,6 +138,34 @@ export const sessions = pgTable(
   (t) => [index("sessions_lecture_jour_idx").on(t.lectureId, t.jour)],
 );
 
+/**
+ * Couvertures importées à la main.
+ *
+ * Open Library et la BnF laissent beaucoup de livres sans image, surtout en
+ * français : il faut pouvoir en fournir une soi-même (§11, « prévois toujours
+ * la saisie manuelle avec upload de couverture »).
+ *
+ * Table séparée, et non une colonne de `livres` : l'image pèse des dizaines
+ * de kilo-octets et serait rapatriée par chaque requête de liste, alors que
+ * les écrans n'ont besoin que d'une URL. Elle est servie par une route
+ * dédiée, en cache immuable.
+ *
+ * Stockage en base64 plutôt qu'en `bytea` : le driver HTTP de Neon manipule
+ * le binaire de façon fragile, et 33 % de volume en plus sur une image déjà
+ * compressée à ~40 ko reste négligeable.
+ */
+export const couvertures = pgTable("couvertures", {
+  livreId: integer("livre_id")
+    .primaryKey()
+    .references(() => livres.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  donnees: text("donnees").notNull(),
+  octets: integer("octets").notNull(),
+  /** Sert d'ETag : change à chaque remplacement, sinon l'ancienne image colle */
+  version: text("version").notNull(),
+  creeLe: timestamp("cree_le", { withTimezone: true }).defaultNow(),
+});
+
 export const citations = pgTable(
   "citations",
   {
@@ -218,6 +246,14 @@ export const livresRelations = relations(livres, ({ one, many }) => ({
   serie: one(series, { fields: [livres.serieId], references: [series.id] }),
   lectures: many(lectures),
   citations: many(citations),
+  couverture: one(couvertures, {
+    fields: [livres.id],
+    references: [couvertures.livreId],
+  }),
+}));
+
+export const couverturesRelations = relations(couvertures, ({ one }) => ({
+  livre: one(livres, { fields: [couvertures.livreId], references: [livres.id] }),
 }));
 
 export const lecturesRelations = relations(lectures, ({ one, many }) => ({

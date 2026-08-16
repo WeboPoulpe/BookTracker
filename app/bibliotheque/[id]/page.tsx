@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActionsLivre } from "@/components/ActionsLivre";
-import { Couverture } from "@/components/Couverture";
+import { CouvertureLivre } from "@/components/CouvertureLivre";
 import { Section } from "@/components/ui/EnTete";
 import { IconeRetour } from "@/components/ui/Icones";
 import { livreParId } from "@/db/requetes/livres";
@@ -75,14 +75,12 @@ export default async function FicheLivre({
         />
 
         <div className="flex gap-4">
-          <Couverture
+          <CouvertureLivre
+            livreId={livre.id}
             titre={livre.titre}
             auteur={livre.auteur}
-            url={livre.couvertureUrl}
             genre={livre.genre}
-            priorite
-            className="h-[178px] w-[120px] shrink-0 shadow-carte-forte"
-            sizes="120px"
+            url={livre.couvertureUrl}
           />
 
           <div className="min-w-0 flex-1">

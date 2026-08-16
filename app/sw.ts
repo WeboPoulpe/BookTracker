@@ -44,6 +44,24 @@ const strategies: RuntimeCaching[] = [
     }),
   },
   {
+    // Couvertures importées à la main. Leur URL porte un numéro de version,
+    // donc un remplacement produit une autre URL : le cache ne peut pas
+    // servir une image périmée.
+    matcher: ({ url, sameOrigin }) =>
+      sameOrigin && url.pathname.startsWith("/api/couverture/"),
+    handler: new CacheFirst({
+      cacheName: "couvertures-locales",
+      plugins: [
+        new CacheableResponsePlugin({ statuses: [0, 200] }),
+        new ExpirationPlugin({
+          maxEntries: 400,
+          maxAgeSeconds: 60 * 60 * 24 * 365,
+          purgeOnQuotaError: true,
+        }),
+      ],
+    }),
+  },
+  {
     // Recherche Open Library : le réseau d'abord, mais une réponse déjà vue
     // vaut mieux qu'un écran vide. Court délai avant de basculer sur le
     // cache, sinon on attend le timeout TCP complet dans un train.

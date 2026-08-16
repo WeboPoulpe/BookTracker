@@ -40,6 +40,11 @@ export function Couverture({
           fill
           sizes={sizes}
           priority={priorite}
+          // Les couvertures importées sont déjà redimensionnées et
+          // recompressées dans le navigateur : les repasser à l'optimiseur
+          // ne gagnerait rien et ferait payer une transformation serveur à
+          // chaque nouvelle taille demandée.
+          unoptimized={url.startsWith("/api/couverture/")}
           className="object-cover"
         />
       ) : (
