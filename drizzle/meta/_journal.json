@@ -36,6 +36,13 @@
       "when": 1786907958353,
       "tag": "0004_ajout_nouveaux_axes",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786907958354,
+      "tag": "0005_extension_unaccent",
+      "breakpoints": true
     }
   ]
 }

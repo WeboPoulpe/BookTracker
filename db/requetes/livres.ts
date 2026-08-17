@@ -5,7 +5,6 @@ import {
   desc,
   eq,
   gte,
-  ilike,
   inArray,
   isNull,
   lte,
@@ -149,13 +148,18 @@ export async function listerLivres(
 
   if (filtres.recherche?.trim()) {
     const motif = `%${filtres.recherche.trim()}%`;
-    // ilike : la recherche d'une bibliothèque personnelle se fait au jugé,
-    // pas à la casse près. Un index trigram serait le prochain palier.
+    // La recherche d'une bibliothèque personnelle se fait au jugé, pas à la
+    // casse ni à l'accent près : on tape « soeur », « etranger », « coeur ».
+    // ILIKE seul replie la casse et s'arrête là — « Les Sept Sœurs » restait
+    // introuvable. `unaccent` déplie accents et ligatures des deux côtés,
+    // sur le motif comme sur les colonnes, sans quoi une requête accentuée
+    // cesserait de trouver ce qu'elle trouvait avant. Un index trigram sur
+    // ces expressions serait le prochain palier.
     conditions.push(
       or(
-        ilike(livres.titre, motif),
-        ilike(livres.auteur, motif),
-        ilike(series.nom, motif),
+        sql`unaccent(${livres.titre}) ilike unaccent(${motif})`,
+        sql`unaccent(${livres.auteur}) ilike unaccent(${motif})`,
+        sql`unaccent(${series.nom}) ilike unaccent(${motif})`,
       )!,
     );
   }
