@@ -10,13 +10,13 @@ type Contexte = { params: Promise<{ id: string }> };
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * `debut` accepte `null` — une lecture importée sans date de début en a une
- * légitimement vide — mais pas `fin` : une lecture close ne se rouvre pas
- * ici, c'est le statut du livre qui commande.
+ * Les deux bornes acceptent `null` : une date fausse doit pouvoir être
+ * retirée, pas seulement corrigée. Effacer la fin rouvre la lecture, ce que
+ * la mutation n'autorise que sur la dernière — et le statut du livre suit.
  */
 const schema = z.object({
   debut: z.string().regex(JOUR).nullable().optional(),
-  fin: z.string().regex(JOUR).optional(),
+  fin: z.string().regex(JOUR).nullable().optional(),
 });
 
 export async function PATCH(requete: Request, ctx: Contexte) {

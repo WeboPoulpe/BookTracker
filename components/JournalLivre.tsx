@@ -214,6 +214,26 @@ export function LecturesLivre({ lectures }: { lectures: Lecture[] }) {
   );
 }
 
+/** Retire une date saisie, là où le clavier système ne le permet pas. */
+function BoutonEffacer({
+  onClick,
+  quoi,
+}: {
+  onClick: () => void;
+  quoi: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Effacer ${quoi}`}
+      className="mt-1 text-[12px] text-encre-45 underline underline-offset-2 active:text-[#A8324A]"
+    >
+      Effacer
+    </button>
+  );
+}
+
 /**
  * Bornes d'une lecture, en phrase plutôt qu'en gabarit.
  *
@@ -285,9 +305,11 @@ function EditionLecture({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           debut: debut || null,
-          // Une lecture en cours n'envoie pas de fin : le serveur la
-          // refuserait, et ce refus n'aurait rien appris à personne.
-          ...(enLecture ? {} : { fin }),
+          // Une lecture déjà en cours n'envoie pas de fin : le serveur la
+          // refuserait, et ce refus n'aurait rien appris à personne. Une
+          // lecture close, elle, envoie `null` quand on l'a effacée — c'est
+          // ce qui la rouvre.
+          ...(enLecture ? {} : { fin: fin || null }),
         }),
       });
 
@@ -316,27 +338,50 @@ function EditionLecture({
       className="overflow-hidden"
     >
       <div className="mt-2 mb-1 space-y-2 rounded-carte bg-white/70 p-3 ring-1 ring-white/80">
+        {/* Un « Effacer » explicite par date : vider un champ `type="date"`
+            au clavier système est laborieux sur téléphone, et sur certains
+            navigateurs impossible. Or une date fausse venue d'un import doit
+            pouvoir être retirée, pas seulement corrigée. */}
         <div className="flex gap-2">
-          <Champ
-            label="Début"
-            type="date"
-            max={fin || jour}
-            value={debut}
-            onChange={(e) => setDebut(e.target.value)}
-            className="flex-1"
-          />
-          {enLecture ? null : (
+          <div className="flex-1">
             <Champ
-              label="Fin"
+              label="Début"
               type="date"
-              min={debut || undefined}
-              max={jour}
-              value={fin}
-              onChange={(e) => setFin(e.target.value)}
-              className="flex-1"
+              max={fin || jour}
+              value={debut}
+              onChange={(e) => setDebut(e.target.value)}
             />
+            {debut ? (
+              <BoutonEffacer onClick={() => setDebut("")} quoi="le début" />
+            ) : null}
+          </div>
+
+          {enLecture ? null : (
+            <div className="flex-1">
+              <Champ
+                label="Fin"
+                type="date"
+                min={debut || undefined}
+                max={jour}
+                value={fin}
+                onChange={(e) => setFin(e.target.value)}
+              />
+              {fin ? (
+                <BoutonEffacer onClick={() => setFin("")} quoi="la fin" />
+              ) : null}
+            </div>
           )}
         </div>
+
+        {/* Prévenir avant, pas expliquer après : effacer la fin remet le
+            livre en cours de lecture, donc le retire du compteur de l'année.
+            C'est cohérent, mais ça ne se devine pas. */}
+        {!enLecture && !fin ? (
+          <p className="text-[12px] text-encre-45">
+            Sans date de fin, la lecture redevient en cours et le livre repasse
+            en « en cours de lecture ».
+          </p>
+        ) : null}
 
         {enLecture ? (
           <p className="text-[12px] text-encre-45">

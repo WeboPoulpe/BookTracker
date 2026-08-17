@@ -338,14 +338,19 @@ export async function majSession(
 export async function majLecture(
   utilisateurId: string,
   id: number,
-  valeurs: { debut?: string | null; fin?: string },
+  valeurs: { debut?: string | null; fin?: string | null },
 ): Promise<
   | null
   | { ok: false; refus: string }
   | { ok: true; lecture: typeof lectures.$inferSelect }
 > {
   const [lecture] = await db
-    .select({ id: lectures.id, debut: lectures.debut, fin: lectures.fin })
+    .select({
+      id: lectures.id,
+      livreId: lectures.livreId,
+      debut: lectures.debut,
+      fin: lectures.fin,
+    })
     .from(lectures)
     .innerJoin(livres, eq(livres.id, lectures.livreId))
     .where(and(eq(lectures.id, id), eq(livres.utilisateurId, utilisateurId)))
@@ -358,12 +363,33 @@ export async function majLecture(
   // laisserait le livre marqué en cours sans lecture ouverte, et le remettre
   // en cours en ouvrirait alors une seconde. La fin s'inscrit en marquant le
   // livre comme lu — le champ n'est donc pas proposé tant qu'elle est ouverte.
-  if (lecture.fin === null && valeurs.fin !== undefined) {
+  if (lecture.fin === null && valeurs.fin != null) {
     return {
       ok: false,
       refus:
         "Cette lecture est en cours. Sa date de fin s'inscrit en marquant le livre comme lu.",
     };
+  }
+
+  // Effacer la fin rouvre la lecture. Le même invariant joue en sens
+  // inverse : deux lectures ouvertes sur un livre, et `changerStatut` ne
+  // saurait plus laquelle clore. On ne rouvre donc que la dernière.
+  const effaceLaFin = valeurs.fin === null && lecture.fin !== null;
+  if (effaceLaFin) {
+    const [plusRecente] = await db
+      .select({ id: lectures.id })
+      .from(lectures)
+      .where(eq(lectures.livreId, lecture.livreId))
+      .orderBy(desc(lectures.fin), desc(lectures.id))
+      .limit(1);
+
+    if (plusRecente && plusRecente.id !== lecture.id) {
+      return {
+        ok: false,
+        refus:
+          "Seule la dernière lecture peut être rouverte : le livre aurait sinon deux lectures en cours.",
+      };
+    }
   }
 
   const debut = valeurs.debut === undefined ? lecture.debut : valeurs.debut;
@@ -385,9 +411,31 @@ export async function majLecture(
 
   const [maj] = await db
     .update(lectures)
-    .set({ debut, fin })
+    .set(
+      effaceLaFin
+        ? {
+            debut,
+            fin,
+            // Une lecture rouverte n'a plus ni page finale ni abandon : ces
+            // deux-là ne décrivent qu'une lecture close, et les laisser
+            // ferait mentir la fiche.
+            pageFinale: null,
+            abandonnee: false,
+          }
+        : { debut, fin },
+    )
     .where(eq(lectures.id, id))
     .returning();
+
+  // Le statut du livre suit sa lecture : la rouvrir sans le changer
+  // laisserait un livre « lu » dont la seule lecture est en cours, et le
+  // ferait disparaître du compteur de l'année sans qu'il reparaisse ailleurs.
+  if (effaceLaFin) {
+    await db
+      .update(livres)
+      .set({ statut: "en_cours" })
+      .where(eq(livres.id, lecture.livreId));
+  }
 
   return { ok: true, lecture: maj };
 }
