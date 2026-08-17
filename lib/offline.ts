@@ -97,10 +97,6 @@ export async function marquerEchec(id: number, motif: string) {
   });
 }
 
-export async function viderFile() {
-  await db()?.fileSynchro.clear();
-}
-
 /* ── Reprise ─────────────────────────────────────────────────────────────── */
 
 export type BilanSynchro = {

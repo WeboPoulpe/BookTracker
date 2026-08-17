@@ -62,16 +62,6 @@ type ReponseOL = {
   }>;
 };
 
-export function couvertureParIsbn(
-  isbn13: string | null | undefined,
-  taille: "S" | "M" | "L" = "M",
-): string | null {
-  if (!isbn13) return null;
-  const propre = isbn13.replace(/[^0-9Xx]/g, "");
-  if (propre.length !== 13 && propre.length !== 10) return null;
-  return `https://covers.openlibrary.org/b/isbn/${propre}-${taille}.jpg`;
-}
-
 /**
  * « Le Palais des vents (Les Sept Sœurs, #4) » → série + tome.
  * Goodreads comme Open Library utilisent cette convention entre parenthèses.

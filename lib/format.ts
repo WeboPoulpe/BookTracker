@@ -87,24 +87,6 @@ export function pourcent(ratio: number | null): string {
   return `${Math.round(ratio * 100)} %`;
 }
 
-/**
- * Date de fin estimée à partir du rythme observé.
- * Renvoie null si l'échantillon est trop maigre — mieux vaut ne rien annoncer
- * qu'annoncer « fini dans 3 ans » sur la foi d'une seule session.
- */
-export function finEstimee(
-  pagesRestantes: number,
-  pagesParJour: number,
-): Date | null {
-  // Affichage seulement : jamais écrit en base, donc le fuseau du poste suffit.
-  if (pagesRestantes <= 0 || pagesParJour <= 0) return null;
-  const jours = Math.ceil(pagesRestantes / pagesParJour);
-  if (jours > 3650) return null;
-  const d = new Date();
-  d.setDate(d.getDate() + jours);
-  return d;
-}
-
 /** « il y a 3 jours », « aujourd'hui » — repère plus parlant qu'une date. */
 export function depuis(d: Date | string | null | undefined): string {
   if (!d) return "—";

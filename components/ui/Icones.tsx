@@ -199,14 +199,6 @@ export function IconeStats({ actif, ...p }: Props) {
   );
 }
 
-export function IconePlus(p: Props) {
-  return (
-    <Base {...p}>
-      <path d="M12 5v14M5 12h14" strokeWidth={2.25} />
-    </Base>
-  );
-}
-
 export function IconeRecherche(p: Props) {
   return (
     <Base {...p}>
@@ -257,30 +249,3 @@ export function IconeEtoile({
   );
 }
 
-export function IconeLivre(p: Props) {
-  return (
-    <Base {...p}>
-      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H19v16H5.5A1.5 1.5 0 0 1 4 18.5Z" />
-      <path d="M7.5 4v16" />
-    </Base>
-  );
-}
-
-export function IconeCitation(p: Props) {
-  return (
-    <Base {...p}>
-      <path d="M9.5 6.5C7 7.5 5.5 9.8 5.5 12.5v4h5v-5.5h-3c0-1.8.9-3 2.6-3.7ZM19 6.5c-2.5 1-4 3.3-4 6v4h5v-5.5h-3c0-1.8.9-3 2.6-3.7Z" />
-    </Base>
-  );
-}
-
-export function IconeSerie(p: Props) {
-  return (
-    <Base {...p}>
-      <rect x="3" y="6" width="4" height="13" rx="1" />
-      <rect x="8.5" y="6" width="4" height="13" rx="1" />
-      <rect x="14" y="6" width="4" height="13" rx="1" />
-      <path d="M3 3.5h18" />
-    </Base>
-  );
-}

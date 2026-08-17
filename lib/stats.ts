@@ -5,21 +5,6 @@
  * §4 les veut testées unitairement. Les requêtes vivent dans db/requetes.
  */
 
-/** Répartition mensuelle sur l'année en cours, index 0 = janvier. */
-export function rythmeMensuel(
-  dates: Array<string | null>,
-  annee: number,
-): number[] {
-  const mois = Array<number>(12).fill(0);
-  for (const d of dates) {
-    if (!d) continue;
-    const date = new Date(`${d}T12:00:00`);
-    if (Number.isNaN(date.getTime()) || date.getFullYear() !== annee) continue;
-    mois[date.getMonth()] += 1;
-  }
-  return mois;
-}
-
 /** Le plus fréquent, à égalité le premier rencontré. */
 export function dominant(valeurs: Array<string | null>): {
   valeur: string;

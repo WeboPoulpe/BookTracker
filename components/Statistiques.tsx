@@ -57,8 +57,15 @@ function lien(
   origine?: { annee: number | null; mois: number | null },
 ) {
   const p = new URLSearchParams();
-  if (portee.annee !== null) p.set("annee", String(portee.annee));
-  if (portee.mois !== null) p.set("mois", String(portee.mois));
+  if (portee.annee !== null) {
+    p.set("annee", String(portee.annee));
+    if (portee.mois !== null) p.set("mois", String(portee.mois));
+  } else {
+    // Sans année, rien ne restreignait la liste aux livres lus : une barre
+    // comptant onze romans ouvrait les vingt et un romans possédés. L'année,
+    // elle, impose déjà une lecture terminée dans la période.
+    p.set("lu", "1");
+  }
   for (const [k, v] of Object.entries(extra)) {
     if (v !== undefined && v !== "") p.set(k, String(v));
   }

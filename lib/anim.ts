@@ -32,8 +32,6 @@ export const RESSORT_AMPLE: Transition = {
   mass: 1,
 };
 
-export const DOUX: Transition = { duration: 0.28, ease: [0.32, 0.72, 0, 1] };
-
 /* ── Listes en cascade ───────────────────────────────────────────────────── */
 
 export const conteneurCascade = (decalage = 0.05, retard = 0.02): Variants => ({

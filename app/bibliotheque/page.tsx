@@ -37,6 +37,7 @@ type Params = {
   note?: string;
   pages?: string;
   auteur?: string;
+  lu?: string;
   retour?: string;
 };
 
@@ -69,6 +70,13 @@ function entier(v: string | undefined, min: number, max: number) {
 function lireFiltres(p: Params) {
   const filtres: FiltresLivres = {};
   const etiquettes: string[] = [];
+
+  // Posé par les graphiques quand leur portée est « depuis le début » : ils
+  // comptent des lectures, la liste doit s'y tenir. Une année le suppose déjà.
+  if (p.lu === "1" && !p.annee) {
+    filtres.lu = true;
+    etiquettes.push("lus");
+  }
 
   const annee = entier(p.annee, 1900, 2200);
   if (annee !== undefined) {

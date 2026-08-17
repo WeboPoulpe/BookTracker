@@ -78,10 +78,6 @@ export const schemaLivrePartiel = champsLivre.partial();
 export type EntreeLivre = z.input<typeof schemaLivre>;
 export type LivreValide = z.output<typeof schemaLivre>;
 
-export const schemaMajLivre = schemaLivrePartiel.extend({
-  id: z.coerce.number().int().positive(),
-});
-
 export const schemaSession = z
   .object({
     livreId: z.coerce.number().int().positive(),
@@ -108,7 +104,3 @@ export const schemaCitation = z.object({
   page: optionnel(z.coerce.number().int().min(0).max(50_000)),
 });
 
-export const schemaStatut = z.object({
-  id: z.coerce.number().int().positive(),
-  statut: z.enum(STATUTS),
-});

@@ -85,10 +85,9 @@ const SYNOPSIS_MAXIMAL = 4000;
 /**
  * Délais d'attente, par source.
  *
- * Open Library est la plus courte volontairement : elle n'a jamais rendu une
- * seule couverture de cette bibliothèque, et douze sondages sur douze ont
- * expiré. La garder coûte peu tant qu'elle passe en dernier ; l'attendre
- * longtemps coûterait la vague entière.
+ * Le dernier recours a le délai le plus court : une source qu'on n'interroge
+ * qu'après l'échec des autres ne doit pas coûter plus qu'elle ne rapporte.
+ * C'est la place d'Open Library quand elle est rebranchée.
  */
 const DELAI_IMAGE = 4000;
 const DELAI_RECHERCHE = 4000;
@@ -178,6 +177,14 @@ type Resultat = {
  * d'autre ne se laisse résoudre. Le sous-genre n'est retenu que s'il figure
  * déjà dans la liste du genre — inventer une valeur libre à partir d'un
  * libellé de catalogue remplirait le champ sans le renseigner.
+ *
+ * Le genre rendu est le **libellé**, pas la clé. C'est la convention de la
+ * colonne `genre` : le formulaire d'édition, l'import Bookmory et Open
+ * Library y écrivent tous « Thriller ». Y glisser « thriller » créait une
+ * seconde convention, invisible à l'affichage — `resoudreGenre` lit les deux
+ * — mais pas au filtrage : les statistiques comptaient « Policier » et
+ * « policier » dans une même barre de dix, et le lien vers la bibliothèque,
+ * qui compare le libellé à l'identique, n'en rendait que trois.
  */
 export function deduireGenre(
   rayons: string[],
@@ -185,20 +192,21 @@ export function deduireGenre(
   const precis = rayons.filter((r) => !RAYONS_GENERIQUES.has(normaliser(r)));
   const generiques = rayons.filter((r) => RAYONS_GENERIQUES.has(normaliser(r)));
 
-  let genre: string | null = null;
+  let trouve: { cle: string; libelle: string } | null = null;
   for (const rayon of [...precis, ...generiques]) {
     const g = resoudreGenre(rayon);
     if (g.cle !== "inconnu") {
-      genre = g.cle;
+      trouve = g;
       break;
     }
   }
-  if (!genre) return null;
+  if (!trouve) return null;
 
-  const proposes = (SOUS_GENRES[genre] ?? []).map(normaliser);
+  // Les sous-genres sont indexés par clé, l'affichage se fait par libellé.
+  const proposes = (SOUS_GENRES[trouve.cle] ?? []).map(normaliser);
   const sousGenre = precis.find((r) => proposes.includes(normaliser(r)));
 
-  return { genre, sousGenre };
+  return { genre: trouve.libelle, sousGenre };
 }
 
 /**
@@ -371,7 +379,7 @@ async function enrichirUn(livre: LivreAEnrichir): Promise<Apport | null> {
 export async function enrichirFiches(
   livres: LivreAEnrichir[],
   options: {
-    /** Plafond de débit : Open Library coupe au-delà de 10 requêtes/seconde */
+    /** Plafond de débit : les catalogues coupent au-delà de ~10 requêtes/s */
     pauseMs?: number;
     /**
      * Budget de temps, en millisecondes.

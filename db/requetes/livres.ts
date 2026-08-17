@@ -6,7 +6,6 @@ import {
   eq,
   gte,
   inArray,
-  isNull,
   lte,
   or,
   sql,
@@ -86,6 +85,15 @@ export type FiltresLivres = {
   /** Tranche de pagination, bornes incluses */
   pagesMin?: number;
   pagesMax?: number;
+  /**
+   * N'a gardé que les livres réellement lus au moins une fois.
+   *
+   * `annee` porte déjà cette contrainte pour une période donnée. Sans année,
+   * elle manquait : une barre de statistiques comptant onze romans lus
+   * renvoyait vers les vingt et un romans possédés, sans que rien n'explique
+   * l'écart.
+   */
+  lu?: boolean;
   /** Année et mois de *fin de lecture*, pas d'ajout */
   annee?: number;
   mois?: number;
@@ -120,6 +128,17 @@ export async function listerLivres(
   }
   if (filtres.pagesMax !== undefined) {
     conditions.push(lte(livres.pages, filtres.pagesMax));
+  }
+
+  // Redondant quand une année est demandée, puisqu'elle exige déjà une
+  // lecture terminée : on ne l'applique alors pas deux fois.
+  if (filtres.lu && filtres.annee === undefined) {
+    conditions.push(sql`exists (
+      select 1 from lectures le
+      where le.livre_id = ${livres.id}
+        and le.abandonnee is not true
+        and le.fin is not null
+    )`);
   }
 
   if (filtres.annee !== undefined) {
@@ -245,13 +264,3 @@ export async function livreParId(utilisateurId: string, id: number) {
   return { livre, historique, journal, extraits };
 }
 
-/** Lecture ouverte du livre, celle sur laquelle une session vient se poser. */
-export async function lectureOuverte(livreId: number) {
-  const [l] = await db
-    .select()
-    .from(lectures)
-    .where(and(eq(lectures.livreId, livreId), isNull(lectures.fin)))
-    .orderBy(desc(lectures.id))
-    .limit(1);
-  return l ?? null;
-}
