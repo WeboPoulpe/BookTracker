@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/Graphiques";
 import type { Statistiques as Stats } from "@/db/requetes/statistiques";
 import { RESSORT, TOUCHER, conteneurCascade, elementCascade } from "@/lib/anim";
-import { nombre } from "@/lib/format";
+import { nombre, pluriel } from "@/lib/format";
 import { resoudreGenre } from "@/lib/genres";
 
 const LienAnime = motion.create(Link);
@@ -77,16 +77,18 @@ function Tuile({
   suffixe,
   libelle,
   detail,
+  className = "",
 }: {
   valeur: number | null;
   suffixe?: string;
   libelle: string;
   detail?: string;
+  className?: string;
 }) {
   return (
     <motion.div
       variants={elementCascade}
-      className="rounded-tuile bg-white/85 px-4 py-3.5 shadow-carte ring-1 ring-white/70 backdrop-blur-sm"
+      className={`rounded-tuile bg-white/85 px-4 py-3.5 shadow-carte ring-1 ring-white/70 backdrop-blur-sm ${className}`}
     >
       <p className="chiffres font-display text-[1.7rem] leading-none font-bold text-encre">
         {valeur === null ? "—" : <Compteur valeur={valeur} />}
@@ -208,6 +210,22 @@ export function Statistiques({ stats: s }: { stats: Stats }) {
               valeur={s.parGenre.length}
               libelle="Genres parcourus"
               detail={s.parGenre[0]?.libelle}
+            />
+            {/* Sur toute la largeur : c'est le seul taux au milieu de quatre
+                comptes, et le seul dont le chiffre ne veut rien dire sans son
+                dénominateur — qui tient alors sur une ligne. */}
+            <Tuile
+              className="col-span-2"
+              valeur={
+                s.tauxAbandon === null ? null : Math.round(s.tauxAbandon * 100)
+              }
+              suffixe=" %"
+              libelle="Taux d'abandon"
+              detail={
+                s.tauxAbandon === null
+                  ? "aucune lecture menée à son terme"
+                  : `${pluriel(s.abandons, "abandon")} sur ${nombre(s.abandons + s.livresLus)} ${s.abandons + s.livresLus > 1 ? "lectures terminées" : "lecture terminée"}`
+              }
             />
           </motion.div>
         </Section>
