@@ -1,6 +1,6 @@
 import { rechercherApple } from "./apple";
 import { rechercherBnf } from "./bnf";
-import { couvertureParIsbn, rechercher as rechercherOL, type Resultat, type Source } from "./openlibrary";
+import { rechercher as rechercherOL, type Resultat, type Source } from "./openlibrary";
 
 /**
  * Recherche de livre sur trois catalogues complémentaires.
@@ -233,13 +233,16 @@ export async function rechercherLivre(
     .map((classe): Resultat => {
       const { rang, ...r } = classe;
       void rang;
-      return {
-        ...r,
-        // Une notice BnF avec ISBN peut emprunter la couverture d'Open
-        // Library : le service d'images est indépendant du moteur de
-        // recherche, et reste debout quand celui-ci flanche.
-        couvertureUrl: r.couvertureUrl ?? couvertureParIsbn(r.isbn13),
-      };
+      // Une notice BnF empruntait ici la couverture d'Open Library, déduite
+      // de son ISBN. L'adresse était fabriquée sans jamais vérifier qu'une
+      // image s'y trouve : c'était le seul chemin par lequel une couverture
+      // entrait en base sans avoir été téléchargée. Open Library étant
+      // injoignable, ces fiches paraissaient illustrées, ne montraient rien,
+      // et comptaient pour complètes — donc n'étaient jamais réparées.
+      //
+      // Mieux vaut ne rien proposer : la vague de complètement, elle,
+      // télécharge avant d'enregistrer.
+      return { ...r };
     })
     .slice(0, 24);
 

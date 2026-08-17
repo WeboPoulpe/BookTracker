@@ -318,6 +318,23 @@ export async function importerLot(
 }
 
 /**
+ * Livre sans couverture affichable.
+ *
+ * Une adresse `covers.openlibrary.org/b/isbn/…` n'en est pas une : elle était
+ * déduite d'un ISBN sans qu'aucune image ait été téléchargée. Le champ était
+ * rempli, la fiche comptait pour complète, et l'écran restait gris — le
+ * service ne répond plus. Les traiter comme absentes permet à la vague de les
+ * remplacer par une couverture réellement obtenue.
+ *
+ * Les adresses `/b/id/…`, elles, désignent une image dont Open Library
+ * atteste l'existence : on n'y touche pas.
+ */
+const SANS_COUVERTURE = sql<boolean>`(
+  ${livres.couvertureUrl} is null
+  or ${livres.couvertureUrl} like 'https://covers.openlibrary.org/b/isbn/%'
+)`;
+
+/**
  * Fiche à laquelle il manque quelque chose que les catalogues savent fournir.
  *
  * Une seule définition, partagée par le compte affiché, la sélection des
@@ -325,7 +342,7 @@ export async function importerLot(
  * diverger, et l'écran aurait annoncé un travail que la vague ne fait pas.
  */
 const INCOMPLETE = sql`(
-  ${livres.couvertureUrl} is null
+  ${SANS_COUVERTURE}
   or ${livres.synopsis} is null or ${livres.synopsis} = ''
   or ${livres.genre} is null or ${livres.genre} = ''
 )`;
@@ -351,7 +368,7 @@ export async function compterFichesIncompletes(utilisateurId: string): Promise<{
 }> {
   const [ligne] = await db
     .select({
-      sansCouverture: sql<number>`count(*) filter (where ${livres.couvertureUrl} is null)::int`,
+      sansCouverture: sql<number>`count(*) filter (where ${SANS_COUVERTURE})::int`,
       sansSynopsis: sql<number>`count(*) filter (where ${livres.synopsis} is null or ${livres.synopsis} = '')::int`,
       sansGenre: sql<number>`count(*) filter (where ${livres.genre} is null or ${livres.genre} = '')::int`,
       total: sql<number>`count(*) filter (where ${INCOMPLETE})::int`,
@@ -396,6 +413,14 @@ export async function completerFiches(
    * trouvées comprises, et n'afficher qu'un « recherche interrompue ».
    */
   budgetMs = 20_000,
+  /**
+   * Ne traiter que ce livre-là, curseur ignoré.
+   *
+   * L'ajout d'un livre s'en sert pour compléter sa fiche à la volée : sans
+   * ça, il faudrait aller lancer la passe entière depuis les réglages pour
+   * illustrer un seul titre qu'on vient de saisir.
+   */
+  livreId?: number,
 ): Promise<{
   traites: number;
   trouves: number;
@@ -421,7 +446,7 @@ export async function completerFiches(
       isbn13: livres.isbn13,
       titre: livres.titre,
       auteur: livres.auteur,
-      couvertureUrl: livres.couvertureUrl,
+      sansCouverture: SANS_COUVERTURE.as("sans_couverture"),
       synopsis: livres.synopsis,
       genre: livres.genre,
       sousGenre: livres.sousGenre,
@@ -431,7 +456,11 @@ export async function completerFiches(
       and(
         eq(livres.utilisateurId, utilisateurId),
         INCOMPLETE,
-        sql`${livres.id} > ${apresId}`,
+        // Un livre désigné court-circuite le curseur : l'ajout complète sa
+        // seule fiche, sans parcourir la bibliothèque.
+        livreId === undefined
+          ? sql`${livres.id} > ${apresId}`
+          : eq(livres.id, livreId),
       ),
     )
     .orderBy(livres.id)
@@ -445,7 +474,7 @@ export async function completerFiches(
       isbn13: c.isbn13 || null,
       titre: c.titre,
       auteur: c.auteur,
-      besoinCouverture: c.couvertureUrl === null,
+      besoinCouverture: c.sansCouverture,
       besoinSynopsis: !c.synopsis,
       besoinGenre: !c.genre,
     })),
@@ -475,7 +504,7 @@ export async function completerFiches(
       sousGenre?: string;
     } = {};
 
-    if (apport.couverture && c.couvertureUrl === null) {
+    if (apport.couverture && c.sansCouverture) {
       set.couvertureUrl = apport.couverture.url;
       trouves += 1;
     }
@@ -504,7 +533,7 @@ export async function completerFiches(
       id: livres.id,
       titre: livres.titre,
       auteur: livres.auteur,
-      sansCouverture: sql<boolean>`${livres.couvertureUrl} is null`,
+      sansCouverture: SANS_COUVERTURE.as("sans_couverture"),
       sansSynopsis: sql<boolean>`${livres.synopsis} is null or ${livres.synopsis} = ''`,
       sansGenre: sql<boolean>`${livres.genre} is null or ${livres.genre} = ''`,
     })

@@ -141,9 +141,13 @@ export async function rechercher(
       annee: d.first_publish_year ?? null,
       isbn13,
       pages: d.number_of_pages_median ?? null,
+      // `cover_i` seulement : c'est l'identifiant d'une image dont le
+      // catalogue atteste l'existence. Déduire une adresse de l'ISBN quand il
+      // manque produisait un lien plausible vers rien — la fiche paraissait
+      // illustrée, n'affichait aucune image, et comptait pour complète.
       couvertureUrl: d.cover_i
         ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg`
-        : couvertureParIsbn(isbn13),
+        : null,
       genre: genreDepuisSujets(d.subject),
       serie,
       tome,
