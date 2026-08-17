@@ -33,6 +33,31 @@ function empreinte(titre: string, auteur: string) {
   return `${normaliser(titre)}|${normaliser(auteur)}`;
 }
 
+/**
+ * Périodes de lecture d'une entrée, sans répétition.
+ *
+ * Un catalogue peut lister deux fois la même lecture — Bookmory répète sa
+ * colonne « Période de lecture », StoryGraph empile les dates dans un seul
+ * champ. Les insérer telles quelles créait deux lectures identiques, ce qui
+ * comptait le livre deux fois dans l'année sans que rien ne le signale. Un
+ * doublon de ce type existait en base sur « La chronique des Bridgerton
+ * (Tomes 5 & 6) ».
+ *
+ * Le dédoublonnage porte sur le couple de dates : deux lectures du même
+ * livre commencées et finies les mêmes jours sont la même lecture.
+ */
+function periodesDistinctes<T extends { debut: string | null; fin: string }>(
+  periodes: T[] | undefined,
+): T[] {
+  const vues = new Set<string>();
+  return (periodes ?? []).filter((p) => {
+    const cle = `${p.debut ?? ""}|${p.fin}`;
+    if (vues.has(cle)) return false;
+    vues.add(cle);
+    return true;
+  });
+}
+
 type Existant = {
   id: number;
   titre: string;
@@ -215,7 +240,7 @@ export async function importerLot(
            tenu pour les champs du livre — ne remplir que ce qui manque, sans
            jamais écraser. */
         const nouvelles: typeof entree.periodes = [];
-        for (const p of entree.periodes ?? []) {
+        for (const p of periodesDistinctes(entree.periodes)) {
           const connue = lecturesConnues.get(`${existant.id}|${p.fin}`);
           if (!connue) {
             nouvelles.push(p);
@@ -305,7 +330,7 @@ export async function importerLot(
         const inserees = await db
           .insert(lectures)
           .values(
-            entree.periodes.map((p) => ({
+            periodesDistinctes(entree.periodes).map((p) => ({
               livreId: livre.id,
               debut: p.debut,
               fin: p.fin,
