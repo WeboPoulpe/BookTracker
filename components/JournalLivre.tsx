@@ -174,8 +174,7 @@ export function LecturesLivre({ lectures }: { lectures: Lecture[] }) {
                   {visibles.length > 1
                     ? `${visibles.length - i}${visibles.length - i === 1 ? "re" : "e"} lecture · `
                     : ""}
-                  {dateCourte(l.debut)} → {l.fin ? dateCourte(l.fin) : "en cours"}
-                  {l.abandonnee ? " · abandonnée" : ""}
+                  {bornes(l)}
                 </button>
                 <button
                   type="button"
@@ -213,6 +212,31 @@ export function LecturesLivre({ lectures }: { lectures: Lecture[] }) {
       />
     </>
   );
+}
+
+/**
+ * Bornes d'une lecture, en phrase plutôt qu'en gabarit.
+ *
+ * La ligne affichait « — → 13 déc. 2025 » dès qu'une date de début manquait,
+ * ce qui donnait l'air d'une donnée abîmée alors que l'information n'a jamais
+ * existé : Goodreads n'exporte aucune date de début, et StoryGraph n'en donne
+ * une que si la lecture y a été saisie comme une plage. Vingt-cinq lectures
+ * sur quarante sont dans ce cas.
+ *
+ * On dit donc ce qu'on sait, et rien de plus. La date reste modifiable d'un
+ * appui sur la ligne, pour qui veut la compléter de mémoire.
+ */
+function bornes(l: Lecture): string {
+  const suffixe = l.abandonnee ? " · abandonnée" : "";
+
+  if (l.debut && l.fin) {
+    return `${dateCourte(l.debut)} → ${dateCourte(l.fin)}${suffixe}`;
+  }
+  if (l.fin) {
+    return `${l.abandonnee ? "Abandonnée" : "Terminée"} le ${dateCourte(l.fin)}`;
+  }
+  if (l.debut) return `Depuis le ${dateCourte(l.debut)}${suffixe}`;
+  return `En cours${suffixe}`;
 }
 
 /**
