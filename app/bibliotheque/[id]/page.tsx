@@ -17,12 +17,54 @@ import { utilisateurCourantId } from "@/lib/utilisateur";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Écrans d'où l'on peut arriver sur une fiche, et leur nom au retour.
+ *
+ * Le lien renvoyait toujours vers la bibliothèque : on quittait l'étagère,
+ * défilée jusqu'au bon rayon, pour retomber dans une grille sans rapport. Le
+ * chemin d'origine voyage donc dans l'URL, et son libellé se lit ici — un
+ * bouton qui annonce « Bibliothèque » puis ouvre l'étagère serait pire que
+ * l'inverse.
+ */
+const RETOURS: Array<[RegExp, string]> = [
+  [/^\/etagere(\?|$)/, "Étagère"],
+  [/^\/pal(\?|$)/, "PAL"],
+  [/^\/series(\?|$)/, "Séries"],
+  [/^\/statistiques(\?|$)/, "Statistiques"],
+  [/^\/citations(\?|$)/, "Citations"],
+  [/^\/$/, "Accueil"],
+  [/^\/bibliotheque(\?|$)/, "Bibliothèque"],
+];
+
+/**
+ * Chemin de retour et son libellé.
+ *
+ * Seuls les chemins internes reconnus sont acceptés : une valeur venue de
+ * l'URL est une entrée utilisateur, et un `//evil.example` y passerait pour
+ * un chemin relatif tout en menant ailleurs.
+ */
+function retourDepuis(valeur: string | undefined): {
+  href: string;
+  libelle: string;
+} {
+  const defaut = { href: "/bibliotheque", libelle: "Bibliothèque" };
+  if (!valeur || !valeur.startsWith("/") || valeur.startsWith("//")) {
+    return defaut;
+  }
+
+  const connu = RETOURS.find(([motif]) => motif.test(valeur));
+  return connu ? { href: valeur, libelle: connu[1] } : defaut;
+}
+
 export default async function FicheLivre({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ retour?: string }>;
 }) {
   const { id } = await params;
+  const retour = retourDepuis((await searchParams).retour);
   const n = Number.parseInt(id, 10);
   if (!Number.isInteger(n)) notFound();
 
@@ -52,11 +94,11 @@ export default async function FicheLivre({
       >
         <div className="flex items-center justify-between gap-3">
           <Link
-            href="/bibliotheque"
+            href={retour.href}
             className="-ml-1.5 inline-flex min-h-[44px] items-center gap-1 text-[15px] font-medium text-encre-70"
           >
             <IconeRetour className="h-5 w-5" />
-            Bibliothèque
+            {retour.libelle}
           </Link>
           {/* Cet écran n'a pas d'EnTete : la roue s'y ajoute à la main pour
               qu'aucune page n'y échappe. */}

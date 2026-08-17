@@ -21,12 +21,33 @@ const GROUPEMENTS: Array<{ cle: Groupement; libelle: string }> = [
   { cle: "serie", libelle: "Par série" },
 ];
 
+/**
+ * Rayons des livres sans année de lecture, nommés d'après leur statut.
+ *
+ * Tout livre sans date de fin atterrissait dans « En cours de lecture », ce
+ * qui était faux pour la plupart : une pile à lire jamais ouverte n'est pas
+ * une lecture en cours. Le statut, lui, sait déjà les distinguer — il suffit
+ * de le lire.
+ *
+ * L'ordre est celui de la liste : le rayon actif d'abord, la pile ensuite,
+ * les cas éteints en dernier.
+ */
+const RAYONS_SANS_ANNEE: Array<{ statut: string; libelle: string }> = [
+  { statut: "en_cours", libelle: "En cours de lecture" },
+  { statut: "en_pause", libelle: "En pause" },
+  { statut: "a_lire", libelle: "À lire" },
+  { statut: "abandonne", libelle: "Abandonné" },
+  // Un livre marqué lu dont aucune lecture ne porte de date. Le nommer ainsi
+  // vaut mieux que de l'inventer une année.
+  { statut: "lu", libelle: "Lu, date inconnue" },
+];
+
 /** Rayons qui n'en sont pas : ils passent en fin d'étagère. */
 const FOURRE_TOUT = [
   "Hors série",
   "Sans genre",
-  "En cours de lecture",
   "Auteur inconnu",
+  ...RAYONS_SANS_ANNEE.map((r) => r.libelle),
 ];
 
 function grouper(livres: LivreListe[], par: Groupement) {
@@ -48,10 +69,11 @@ function grouper(livres: LivreListe[], par: Groupement) {
     } else {
       // Année de *lecture*, pas d'ajout : un roman acheté en 2024 et lu en
       // 2026 appartient à l'étagère 2026. Sans date de fin, le livre n'a pas
-      // encore d'année — il attend dans son propre rayon.
+      // encore d'année — son statut dit alors où il en est.
       cle = l.derniereFin
         ? String(new Date(`${l.derniereFin}T12:00:00`).getFullYear())
-        : "En cours de lecture";
+        : (RAYONS_SANS_ANNEE.find((r) => r.statut === l.statut)?.libelle ??
+          "À lire");
     }
 
     const existant = groupes.get(cle);
@@ -59,13 +81,48 @@ function grouper(livres: LivreListe[], par: Groupement) {
     else groupes.set(cle, [l]);
   }
 
-  return [...groupes.entries()].sort(([a], [b]) => {
-    const fa = FOURRE_TOUT.includes(a);
-    const fb = FOURRE_TOUT.includes(b);
-    if (fa !== fb) return fa ? 1 : -1;
-    // Les années à l'envers : l'année en cours en premier.
-    if (par === "annee") return b.localeCompare(a);
-    return a.localeCompare(b, "fr");
+  return [...groupes.entries()]
+    .map(([cle, l]) => [cle, ordonner(l)] as const)
+    .sort(([a], [b]) => {
+      const fa = FOURRE_TOUT.includes(a);
+      const fb = FOURRE_TOUT.includes(b);
+      if (fa !== fb) return fa ? 1 : -1;
+
+      // Entre rayons sans année, l'ordre déclaré prime sur l'alphabet :
+      // « Abandonné » n'a pas à ouvrir la marche devant « En cours ».
+      const ia = RAYONS_SANS_ANNEE.findIndex((r) => r.libelle === a);
+      const ib = RAYONS_SANS_ANNEE.findIndex((r) => r.libelle === b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+
+      // Les années à l'envers : l'année en cours en premier.
+      if (par === "annee") return b.localeCompare(a);
+      return a.localeCompare(b, "fr");
+    });
+}
+
+/**
+ * Ordre des tranches à l'intérieur d'un rayon : la chronologie de lecture.
+ *
+ * Un rayon rangé par titre ne raconte rien. Rangé par date de fin, il se lit
+ * de gauche à droite comme l'année s'est déroulée : le rayon 2026 s'ouvre sur
+ * le premier livre terminé cette année-là. C'est ce que l'étagère physique
+ * qu'on imite ne sait pas faire, et c'est vrai de tous les regroupements —
+ * un rayon d'auteur montre alors l'ordre dans lequel on l'a découvert.
+ *
+ * Les livres non terminés ferment le rayon : ils n'ont pas encore de place
+ * dans cette chronologie, et les mettre en tête daterait le rayon de rien.
+ * Entre eux, le titre départage, faute de mieux.
+ */
+function ordonner(livres: LivreListe[]): LivreListe[] {
+  return [...livres].sort((a, b) => {
+    // Les dates sont en `YYYY-MM-DD` : l'ordre lexicographique est l'ordre
+    // chronologique, sans passer par des objets Date.
+    if (a.derniereFin && b.derniereFin) {
+      return a.derniereFin.localeCompare(b.derniereFin);
+    }
+    if (a.derniereFin) return -1;
+    if (b.derniereFin) return 1;
+    return a.titre.localeCompare(b.titre, "fr");
   });
 }
 
@@ -81,6 +138,10 @@ export default async function Etagere({
   const par: Groupement = GROUPEMENTS.some((g) => g.cle === params.par)
     ? (params.par as Groupement)
     : GROUPEMENTS[0].cle;
+
+  // L'écran exact d'où l'on part, regroupement compris : revenir de la fiche
+  // doit rendre l'étagère telle qu'on l'a quittée, pas son onglet par défaut.
+  const retour = `/etagere?par=${par}`;
 
   const utilisateurId = await utilisateurCourantId();
   const livres = await listerLivres(utilisateurId, { tri: "titre" });
@@ -152,7 +213,12 @@ export default async function Etagere({
                     dégradé pour lui donner une épaisseur, pas juste un trait */}
                 <div className="flex w-max items-end gap-[3px] border-b-[3px] border-[#D8C3B0] pb-0">
                   {livresDuGroupe.map((livre) => (
-                    <Tranche key={livre.id} livre={livre} rang={rang++} />
+                    <Tranche
+                      key={livre.id}
+                      livre={livre}
+                      rang={rang++}
+                      retour={retour}
+                    />
                   ))}
                 </div>
               </div>

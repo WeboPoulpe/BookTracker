@@ -23,10 +23,20 @@ const LienAnime = motion.create(Link);
 export function Tranche({
   livre,
   rang,
+  retour,
 }: {
   livre: LivreListe;
   /** Position dans l'étagère — pilote le décalage de la cascade */
   rang: number;
+  /**
+   * Écran d'où l'on vient, transporté jusqu'à la fiche.
+   *
+   * Sans lui, la fiche renvoie toujours vers la bibliothèque : on quittait
+   * l'étagère, groupée et défilée jusqu'au bon rayon, pour se retrouver dans
+   * une grille sans rapport, et il fallait tout refaire pour ouvrir le livre
+   * suivant.
+   */
+  retour?: string;
 }) {
   const g = resoudreGenre(livre.genre);
   const largeur = largeurTranche(livre.pages);
@@ -46,7 +56,11 @@ export function Tranche({
 
   return (
     <LienAnime
-      href={`/bibliotheque/${livre.id}`}
+      href={
+        retour
+          ? `/bibliotheque/${livre.id}?retour=${encodeURIComponent(retour)}`
+          : `/bibliotheque/${livre.id}`
+      }
       title={`${livre.titre} — ${livre.auteur}`}
       // La tranche se pose depuis le bas, comme un livre qu'on range.
       initial={{ opacity: 0, y: 26, rotateZ: -4 }}
