@@ -1,5 +1,6 @@
 import { rechercherApple } from "./apple";
 import { rechercherBnf } from "./bnf";
+import { normaliser } from "./texte";
 import {
   OPEN_LIBRARY_JOIGNABLE,
   rechercher as rechercherOL,
@@ -92,13 +93,10 @@ async function avecReessai<T>(tache: () => Promise<T>): Promise<T> {
   }
 }
 
-function normaliser(s: string) {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
-    .replace(/[^a-z0-9]/g, "");
-}
+/* La normalisation vient de lib/texte : celle qui vivait ici ignorait les
+   ligatures, si bien que « Les Sept Sœurs » et « Les Sept Soeurs » formaient
+   deux clés distinctes et échappaient au dédoublonnage entre catalogues.
+   C'est le piège que lib/texte documente et corrige en un seul endroit. */
 
 /**
  * Fusionne les doublons entre catalogues.
@@ -148,20 +146,69 @@ function fusionner(resultats: Classe[]): Classe[] {
 }
 
 /**
- * Trie en plaçant d'abord ce qui est directement exploitable.
+ * Mots de la requête qui pèsent, articles et liaisons écartés.
  *
- * Une notice avec couverture et pagination épargne un aller-retour de
- * saisie ; c'est ce qui doit remonter en tête, pas la plus « pertinente »
- * au sens du moteur.
+ * « les sept sœurs » se cherche sur « sept » et « soeurs » : garder « les »
+ * ferait passer pour pertinent tout titre commençant par un article, c'est-à-
+ * dire à peu près tous.
  */
-function classer(resultats: Classe[], estFrancais: boolean): Classe[] {
+function motsUtiles(q: string): string[] {
+  return normaliser(q)
+    .split(" ")
+    .filter((m) => m.length >= 3 && !MOTS_VIDES.has(m));
+}
+
+const MOTS_VIDES = new Set([
+  "les", "des", "une", "aux", "que", "qui", "dans", "pour", "avec", "sur",
+  "the", "and", "for", "you",
+]);
+
+/**
+ * Part des mots de la requête retrouvés dans le titre et l'auteur.
+ *
+ * Zéro veut dire qu'aucun mot cherché n'y figure — le catalogue a répondu
+ * sur autre chose : un sujet, un éditeur, une note de bas de notice.
+ */
+function pertinence(r: Classe, mots: string[]): number {
+  if (mots.length === 0) return 1;
+  const foin = ` ${normaliser(`${r.titre} ${r.auteur}`)} `;
+  const trouves = mots.filter((m) => foin.includes(m)).length;
+  return trouves / mots.length;
+}
+
+/**
+ * Trie en plaçant d'abord ce qui répond vraiment à la requête.
+ *
+ * La BnF interroge en `bib.anywhere all`, qui cherche les mots partout dans
+ * la notice — sujet, éditeur, note. Elle rendait donc « Le vray et le faux
+ * protestant » pour « Jamais plus », et « La pocharde » pour « les sept
+ * sœurs », en première position de *sa* liste. Comme chaque résultat gardait
+ * le rang de sa source, ce premier déchet faisait jeu égal avec la première
+ * pépite d'Apple.
+ *
+ * On corrige donc par la correspondance au titre demandé, et non par la
+ * richesse des métadonnées : trier sur la couverture et la pagination avait
+ * déjà été tenté, et remontait des livres sans rapport au motif qu'ils
+ * étaient bien renseignés. Un titre qui ne contient aucun mot cherché recule,
+ * qu'il vienne d'un catalogue ou d'un autre.
+ */
+function classer(
+  resultats: Classe[],
+  estFrancais: boolean,
+  requete: string,
+): Classe[] {
+  const mots = motsUtiles(requete);
+
   return [...resultats].sort((a, b) => {
-    // Le rang d'origine domine : les deux catalogues savent bien mieux que
-    // nous si « Les sept petits musiciens » répond à « les sept sœurs ».
-    // Trier sur la seule richesse des métadonnées remontait des livres sans
-    // rapport, au motif qu'ils avaient une couverture et une pagination.
     const score = (r: Classe) => {
+      // Le rang d'origine reste la base : les catalogues savent mieux que
+      // nous départager deux notices qui répondent toutes deux à la requête.
       let s = r.rang;
+
+      // Le recul est proportionnel aux mots manquants, et assez ample pour
+      // sortir un hors-sujet de la première page sans l'effacer : un titre
+      // français peut légitimement ne reprendre qu'une partie de la requête.
+      s += (1 - pertinence(r, mots)) * 12;
 
       if (estFrancais) {
         // Une édition en langue étrangère recule, sans jamais passer
@@ -241,7 +288,7 @@ export async function rechercherLivre(
     (s.status === "fulfilled" ? s.value : []).map((r, rang) => ({ ...r, rang })),
   );
 
-  const resultats = classer(fusionner(brut), requeteFrancaise(q))
+  const resultats = classer(fusionner(brut), requeteFrancaise(q), q)
     // `rang` est un détail de classement : il n'a rien à faire dans la
     // réponse envoyée au client.
     .map((classe): Resultat => {
