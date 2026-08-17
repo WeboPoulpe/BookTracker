@@ -82,7 +82,7 @@ function grouper(livres: LivreListe[], par: Groupement) {
   }
 
   return [...groupes.entries()]
-    .map(([cle, l]) => [cle, ordonner(l)] as const)
+    .map(([cle, l]) => [cle, ordonner(l, par)] as const)
     .sort(([a], [b]) => {
       const fa = FOURRE_TOUT.includes(a);
       const fb = FOURRE_TOUT.includes(b);
@@ -101,25 +101,40 @@ function grouper(livres: LivreListe[], par: Groupement) {
 }
 
 /**
- * Ordre des tranches à l'intérieur d'un rayon : la chronologie de lecture.
+ * Ordre des tranches à l'intérieur d'un rayon.
  *
- * Un rayon rangé par titre ne raconte rien. Rangé par date de fin, il se lit
- * de gauche à droite comme l'année s'est déroulée : le rayon 2026 s'ouvre sur
- * le premier livre terminé cette année-là. C'est ce que l'étagère physique
- * qu'on imite ne sait pas faire, et c'est vrai de tous les regroupements —
- * un rayon d'auteur montre alors l'ordre dans lequel on l'a découvert.
+ * Par défaut, la chronologie de lecture. Un rayon rangé par titre ne raconte
+ * rien ; rangé par date de fin, il se lit de gauche à droite comme l'année
+ * s'est déroulée — le rayon 2026 s'ouvre sur le premier livre terminé cette
+ * année-là. Un rayon d'auteur montre de même l'ordre de la découverte.
  *
- * Les livres non terminés ferment le rayon : ils n'ont pas encore de place
- * dans cette chronologie, et les mettre en tête daterait le rayon de rien.
- * Entre eux, le titre départage, faute de mieux.
+ * Une série fait exception : elle a son propre ordre, celui des tomes, et
+ * c'est celui qu'on cherche du regard pour savoir où l'on en est. Rangée par
+ * date de lecture, une saga lue dans le désordre afficherait le tome 3 avant
+ * le tome 1 — vrai, mais illisible comme étagère.
  */
-function ordonner(livres: LivreListe[]): LivreListe[] {
+function ordonner(livres: LivreListe[], par: Groupement): LivreListe[] {
+  if (par === "serie") {
+    return [...livres].sort((a, b) => {
+      // Un tome inconnu ferme le rayon : l'intercaler supposerait un numéro
+      // qu'on n'a pas. Les demi-tomes — préquelles, 2.5 — se placent seuls,
+      // la colonne étant numérique.
+      if (a.tome != null && b.tome != null) return a.tome - b.tome;
+      if (a.tome != null) return -1;
+      if (b.tome != null) return 1;
+      return a.titre.localeCompare(b.titre, "fr");
+    });
+  }
+
   return [...livres].sort((a, b) => {
     // Les dates sont en `YYYY-MM-DD` : l'ordre lexicographique est l'ordre
     // chronologique, sans passer par des objets Date.
     if (a.derniereFin && b.derniereFin) {
       return a.derniereFin.localeCompare(b.derniereFin);
     }
+    // Les livres non terminés ferment le rayon : ils n'ont pas encore de
+    // place dans cette chronologie, et les mettre en tête daterait le rayon
+    // de rien. Entre eux, le titre départage, faute de mieux.
     if (a.derniereFin) return -1;
     if (b.derniereFin) return 1;
     return a.titre.localeCompare(b.titre, "fr");
