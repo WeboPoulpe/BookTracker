@@ -403,6 +403,15 @@ export async function completerFiches(
   genres: number;
   substituts: number;
   restants: number;
+  /** Les fiches encore incomplètes, à compléter à la main */
+  incompletes: Array<{
+    id: number;
+    titre: string;
+    auteur: string;
+    sansCouverture: boolean;
+    sansSynopsis: boolean;
+    sansGenre: boolean;
+  }>;
   /** Dernier identifiant examiné, à repasser tel quel à la vague suivante */
   curseur: number;
 }> {
@@ -486,10 +495,22 @@ export async function completerFiches(
     await db.update(livres).set(set).where(eq(livres.id, c.id));
   }
 
-  const [{ restants }] = await db
-    .select({ restants: sql<number>`count(*)::int` })
+  // Les fiches encore incomplètes, nommées et non plus seulement comptées.
+  // « 8 fiches restent incomplètes » n'aide pas : il faut savoir lesquelles,
+  // et ce qui leur manque, pour aller le saisir. Le compte total vient de la
+  // même requête, plafonnée à l'affichage seulement.
+  const incompletes = await db
+    .select({
+      id: livres.id,
+      titre: livres.titre,
+      auteur: livres.auteur,
+      sansCouverture: sql<boolean>`${livres.couvertureUrl} is null`,
+      sansSynopsis: sql<boolean>`${livres.synopsis} is null or ${livres.synopsis} = ''`,
+      sansGenre: sql<boolean>`${livres.genre} is null or ${livres.genre} = ''`,
+    })
     .from(livres)
-    .where(and(eq(livres.utilisateurId, utilisateurId), INCOMPLETE));
+    .where(and(eq(livres.utilisateurId, utilisateurId), INCOMPLETE))
+    .orderBy(livres.titre);
 
   return {
     traites: traites.length,
@@ -497,7 +518,9 @@ export async function completerFiches(
     synopsis,
     genres,
     substituts,
-    restants,
+    restants: incompletes.length,
+    /** Plafonnée : au-delà, la liste cesse d'être une liste de tâches. */
+    incompletes: incompletes.slice(0, 30),
     curseur: traites.length ? traites[traites.length - 1].id : apresId,
   };
 }

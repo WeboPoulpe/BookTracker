@@ -1,10 +1,21 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Bouton } from "@/components/ui/Bouton";
 import { nombre, pluriel } from "@/lib/format";
+
+/** Fiche que les catalogues n'ont pas su compléter — à saisir à la main. */
+type Incomplete = {
+  id: number;
+  titre: string;
+  auteur: string;
+  sansCouverture: boolean;
+  sansSynopsis: boolean;
+  sansGenre: boolean;
+};
 
 /**
  * Complètement des fiches, à la demande, depuis les réglages.
@@ -34,6 +45,7 @@ export function CompleterFiches({
   const router = useRouter();
   const [encours, setEncours] = useState(false);
   const [bilan, setBilan] = useState<string | null>(null);
+  const [restantes, setRestantes] = useState<Incomplete[]>([]);
   // Point de reprise après une interruption : sans lui, un nouvel essai
   // réexaminerait d'abord tous les livres que le premier n'a pas su
   // compléter, et n'atteindrait jamais la suite.
@@ -63,6 +75,10 @@ export function CompleterFiches({
         if (!r.ok) throw new Error("interrompu");
         const d = await r.json();
 
+        // Relevée à chaque tour, y compris au tour final qui ne traite rien :
+        // c'est la dernière qui dit l'état réel une fois la passe achevée.
+        setRestantes(d.incompletes ?? []);
+
         if (d.traites === 0) break;
 
         trouves += d.trouves;
@@ -87,7 +103,7 @@ export function CompleterFiches({
             ? `, ${nombre(substituts)} image(s) générique(s) écartée(s)`
             : "") +
           (restants > 0
-            ? `. ${nombre(restants)} fiche(s) restent incomplètes : les catalogues n'ont pas su les compléter. Tu peux les remplir à la main sur la fiche.`
+            ? `. ${nombre(restants)} fiche(s) restent incomplètes — les catalogues n'ont pas su les compléter :`
             : ". Toutes les fiches sont complètes."),
       );
       router.refresh();
@@ -121,6 +137,31 @@ export function CompleterFiches({
         <p className="mt-2 text-[13px] leading-relaxed text-encre-70">{bilan}</p>
       ) : null}
 
+      {/* Nommer les fiches restantes, et non les compter seulement : un
+          nombre indique qu'il y a du travail, un lien permet de le faire.
+          Chaque ligne dit aussi ce qui manque, pour ouvrir la fiche en
+          sachant quoi y saisir. */}
+      {restantes.length > 0 ? (
+        <ul className="mt-2 space-y-1.5">
+          {restantes.map((f) => (
+            <li key={f.id}>
+              <Link
+                href={`/bibliotheque/${f.id}`}
+                className="flex items-baseline justify-between gap-3 active:text-encre"
+              >
+                <span className="min-w-0 flex-1 truncate text-[13px] text-encre-70">
+                  {f.titre}
+                  <span className="text-encre-45"> · {f.auteur}</span>
+                </span>
+                <span className="shrink-0 text-[11.5px] text-rose-fonce">
+                  {manques(f)}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       {total > 0 ? (
         <div className="mt-3">
           <Bouton
@@ -135,6 +176,17 @@ export function CompleterFiches({
       ) : null}
     </div>
   );
+}
+
+/** « image, genre » — ce qu'il reste à saisir sur cette fiche. */
+function manques(f: Incomplete): string {
+  return [
+    f.sansCouverture ? "image" : null,
+    f.sansSynopsis ? "synopsis" : null,
+    f.sansGenre ? "genre" : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
 }
 
 /** « 3 couvertures, 12 synopsis ajoutés », en taisant ce qui vaut zéro. */
