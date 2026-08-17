@@ -4,8 +4,11 @@ import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Bouton } from "@/components/ui/Bouton";
+import { Champ } from "@/components/ui/Champ";
 import { Confirmation } from "@/components/ui/Confirmation";
 import { RESSORT } from "@/lib/anim";
+import { aujourdhui } from "@/lib/date";
 import { dateCourte, duree, nombre } from "@/lib/format";
 
 type Session = {
@@ -125,6 +128,7 @@ export function LecturesLivre({ lectures }: { lectures: Lecture[] }) {
   const router = useRouter();
   const [aSupprimer, setASupprimer] = useState<Lecture | null>(null);
   const [retirees, setRetirees] = useState<Set<number>>(new Set());
+  const [enEdition, setEnEdition] = useState<number | null>(null);
 
   async function supprimer() {
     if (!aSupprimer) return;
@@ -153,23 +157,48 @@ export function LecturesLivre({ lectures }: { lectures: Lecture[] }) {
               layout
               exit={{ opacity: 0, height: 0 }}
               transition={RESSORT}
-              className="chiffres flex items-baseline gap-2 text-[13px] text-encre-70"
+              className="chiffres text-[13px] text-encre-70"
             >
-              <span className="flex-1">
-                {visibles.length > 1
-                  ? `${visibles.length - i}${visibles.length - i === 1 ? "re" : "e"} lecture · `
-                  : ""}
-                {dateCourte(l.debut)} → {l.fin ? dateCourte(l.fin) : "en cours"}
-                {l.abandonnee ? " · abandonnée" : ""}
-              </span>
-              <button
-                type="button"
-                onClick={() => setASupprimer(l)}
-                aria-label="Supprimer cette lecture"
-                className="shrink-0 px-1 text-[16px] leading-none text-encre-20 active:text-[#A8324A]"
-              >
-                ×
-              </button>
+              <div className="flex items-baseline gap-2">
+                {/* Les dates s'ouvrent d'un appui, là où l'erreur se voit.
+                    Un bouton d'édition séparé ajouterait une cible de plus
+                    sur une ligne qui en a déjà une. */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEnEdition((c) => (c === l.id ? null : l.id))
+                  }
+                  aria-expanded={enEdition === l.id}
+                  className="flex-1 text-left active:text-encre"
+                >
+                  {visibles.length > 1
+                    ? `${visibles.length - i}${visibles.length - i === 1 ? "re" : "e"} lecture · `
+                    : ""}
+                  {dateCourte(l.debut)} → {l.fin ? dateCourte(l.fin) : "en cours"}
+                  {l.abandonnee ? " · abandonnée" : ""}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setASupprimer(l)}
+                  aria-label="Supprimer cette lecture"
+                  className="shrink-0 px-1 text-[16px] leading-none text-encre-20 active:text-[#A8324A]"
+                >
+                  ×
+                </button>
+              </div>
+
+              <AnimatePresence initial={false}>
+                {enEdition === l.id ? (
+                  <EditionLecture
+                    lecture={l}
+                    onFerme={() => setEnEdition(null)}
+                    onEnregistre={() => {
+                      setEnEdition(null);
+                      router.refresh();
+                    }}
+                  />
+                ) : null}
+              </AnimatePresence>
             </motion.li>
           ))}
         </AnimatePresence>
@@ -183,5 +212,128 @@ export function LecturesLivre({ lectures }: { lectures: Lecture[] }) {
         onAnnuler={() => setASupprimer(null)}
       />
     </>
+  );
+}
+
+/**
+ * Correction des bornes d'une lecture, dépliée sous sa ligne.
+ *
+ * Les dates viennent souvent d'un import qui les a devinées — StoryGraph
+ * empile plusieurs lectures dans un champ, et à défaut de date de lecture
+ * c'est la date d'ajout qui a fait foi. Comme elles commandent le compteur
+ * annuel et le rythme, elles doivent se corriger là où on les lit.
+ *
+ * La date de fin n'apparaît pas tant que la lecture est en cours : c'est son
+ * absence qui définit le livre comme en cours, et la poser ici laisserait le
+ * statut du livre en désaccord avec son journal.
+ */
+function EditionLecture({
+  lecture,
+  onFerme,
+  onEnregistre,
+}: {
+  lecture: Lecture;
+  onFerme: () => void;
+  onEnregistre: () => void;
+}) {
+  const [debut, setDebut] = useState(lecture.debut ?? "");
+  const [fin, setFin] = useState(lecture.fin ?? "");
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [encours, setEncours] = useState(false);
+
+  const enLecture = lecture.fin === null;
+  const jour = aujourdhui();
+
+  async function enregistrer() {
+    setEncours(true);
+    setErreur(null);
+
+    // Le serveur revérifie tout : ce garde-fou-ci n'épargne qu'un aller-retour.
+    if (debut && fin && debut > fin) {
+      setErreur("Le début ne peut pas suivre la fin.");
+      setEncours(false);
+      return;
+    }
+
+    try {
+      const r = await fetch(`/api/lectures/${lecture.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          debut: debut || null,
+          // Une lecture en cours n'envoie pas de fin : le serveur la
+          // refuserait, et ce refus n'aurait rien appris à personne.
+          ...(enLecture ? {} : { fin }),
+        }),
+      });
+
+      if (!r.ok) {
+        const corps = await r.json().catch(() => null);
+        setErreur(corps?.erreur?.message ?? "Enregistrement impossible.");
+        return;
+      }
+      onEnregistre();
+    } catch {
+      // Contrairement aux sessions, une correction de dates n'est pas mise en
+      // file hors ligne : elle est rare, et la rejouer plus tard sur un
+      // journal entre-temps modifié ferait plus de dégâts qu'elle n'en répare.
+      setErreur("Réseau indisponible. Réessaie une fois connectée.");
+    } finally {
+      setEncours(false);
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={RESSORT}
+      className="overflow-hidden"
+    >
+      <div className="mt-2 mb-1 space-y-2 rounded-carte bg-white/70 p-3 ring-1 ring-white/80">
+        <div className="flex gap-2">
+          <Champ
+            label="Début"
+            type="date"
+            max={fin || jour}
+            value={debut}
+            onChange={(e) => setDebut(e.target.value)}
+            className="flex-1"
+          />
+          {enLecture ? null : (
+            <Champ
+              label="Fin"
+              type="date"
+              min={debut || undefined}
+              max={jour}
+              value={fin}
+              onChange={(e) => setFin(e.target.value)}
+              className="flex-1"
+            />
+          )}
+        </div>
+
+        {enLecture ? (
+          <p className="text-[12px] text-encre-45">
+            Lecture en cours : sa date de fin s&apos;inscrira en marquant le
+            livre comme lu.
+          </p>
+        ) : null}
+
+        {erreur ? (
+          <p className="text-[12px] text-[#A8324A]">{erreur}</p>
+        ) : null}
+
+        <div className="flex justify-end gap-2">
+          <Bouton variante="doux" taille="sm" onClick={onFerme}>
+            Annuler
+          </Bouton>
+          <Bouton taille="sm" disabled={encours} onClick={enregistrer}>
+            {encours ? "…" : "Enregistrer"}
+          </Bouton>
+        </div>
+      </div>
+    </motion.div>
   );
 }

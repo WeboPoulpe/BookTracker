@@ -311,6 +311,76 @@ export async function majSession(
   return maj ?? null;
 }
 
+/**
+ * Corrige les bornes d'une lecture.
+ *
+ * Les imports déduisent ces dates de ce que les CSV veulent bien donner —
+ * StoryGraph encode plusieurs lectures dans un seul champ, et dix livres lus
+ * n'avaient aucune date, leur date d'ajout faisant alors foi. Ces dates
+ * décident du compteur annuel et du rythme de lecture : sans moyen de les
+ * corriger, une approximation d'import devient une statistique définitive.
+ *
+ * Rend `null` si la lecture n'existe pas, ou `{ ok: false }` si la correction
+ * violerait une règle — la route en fait un message, plutôt qu'un échec muet
+ * qui laisserait croire à une panne.
+ */
+export async function majLecture(
+  utilisateurId: string,
+  id: number,
+  valeurs: { debut?: string | null; fin?: string },
+): Promise<
+  | null
+  | { ok: false; refus: string }
+  | { ok: true; lecture: typeof lectures.$inferSelect }
+> {
+  const [lecture] = await db
+    .select({ id: lectures.id, debut: lectures.debut, fin: lectures.fin })
+    .from(lectures)
+    .innerJoin(livres, eq(livres.id, lectures.livreId))
+    .where(and(eq(lectures.id, id), eq(livres.utilisateurId, utilisateurId)))
+    .limit(1);
+
+  if (!lecture) return null;
+
+  // Une lecture sans fin est ce qui rend un livre « en cours » : c'est elle
+  // que `changerStatut` retrouve pour la clore. Lui poser une fin ici
+  // laisserait le livre marqué en cours sans lecture ouverte, et le remettre
+  // en cours en ouvrirait alors une seconde. La fin s'inscrit en marquant le
+  // livre comme lu — le champ n'est donc pas proposé tant qu'elle est ouverte.
+  if (lecture.fin === null && valeurs.fin !== undefined) {
+    return {
+      ok: false,
+      refus:
+        "Cette lecture est en cours. Sa date de fin s'inscrit en marquant le livre comme lu.",
+    };
+  }
+
+  const debut = valeurs.debut === undefined ? lecture.debut : valeurs.debut;
+  const fin = valeurs.fin === undefined ? lecture.fin : valeurs.fin;
+
+  if (debut && fin && debut > fin) {
+    return { ok: false, refus: "Le début ne peut pas suivre la fin." };
+  }
+
+  // Une date postérieure à aujourd'hui est une faute de frappe, jamais une
+  // intention : on ne finit pas un livre demain.
+  const jour = aujourdhui();
+  if ((debut && debut > jour) || (fin && fin > jour)) {
+    return {
+      ok: false,
+      refus: "Une lecture ne peut pas être datée dans le futur.",
+    };
+  }
+
+  const [maj] = await db
+    .update(lectures)
+    .set({ debut, fin })
+    .where(eq(lectures.id, id))
+    .returning();
+
+  return { ok: true, lecture: maj };
+}
+
 export async function supprimerLecture(utilisateurId: string, id: number) {
   const [ligne] = await db
     .select({ id: lectures.id })
