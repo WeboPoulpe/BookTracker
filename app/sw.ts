@@ -30,9 +30,13 @@ const strategies: RuntimeCaching[] = [
     // Les couvertures ne changent jamais. Une fois en cache, on ne
     // redemande plus rien au réseau — c'est ce qui rend la bibliothèque
     // consultable en mode avion sans écrans gris.
+    // La liste doit suivre celle de `next.config.ts` : une source absente
+    // ici s'affiche en ligne et disparaît en mode avion, ce qui est bien plus
+    // déroutant qu'une couverture jamais trouvée.
     matcher: ({ url }) =>
       url.hostname === "covers.openlibrary.org" ||
-      url.hostname === "books.google.com",
+      url.hostname === "books.google.com" ||
+      url.hostname.endsWith(".mzstatic.com"),
     handler: new CacheFirst({
       cacheName: "couvertures",
       plugins: [

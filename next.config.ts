@@ -4,10 +4,16 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
-      // Les deux sources de couvertures par ISBN. Les couvertures importées
-      // à la main, elles, sont servies par /api/couverture.
+      // Les sources de couvertures. Oublier l'une d'elles ne casse pas la
+      // récupération — l'adresse est enregistrée en base sans encombre — mais
+      // `next/image` refuse ensuite de la servir, et le livre reste gris
+      // comme s'il n'avait pas d'image. Les couvertures importées à la main,
+      // elles, sont servies par /api/couverture.
       { protocol: "https", hostname: "covers.openlibrary.org" },
       { protocol: "https", hostname: "books.google.com" },
+      // Apple répartit ses visuels sur is1 à is5.mzstatic.com, et rien ne
+      // garantit qu'une couverture restera servie par le même hôte.
+      { protocol: "https", hostname: "**.mzstatic.com" },
     ],
     // Les couvertures ne changent jamais : un an de cache navigateur
     minimumCacheTTL: 31_536_000,

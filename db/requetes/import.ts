@@ -318,11 +318,13 @@ export async function importerLot(
 }
 
 /**
- * Livres illustrables encore sans image.
+ * Livres encore sans image.
  *
- * Compte uniquement ceux qui ont un ISBN : les autres ne sont pas
- * « manquants » mais hors d'atteinte, et les annoncer comme récupérables
- * promettrait un résultat que la recherche par ISBN ne peut pas tenir.
+ * Le compte excluait ceux qui n'ont pas d'ISBN, faute de pouvoir les
+ * chercher. Ils étaient alors invisibles deux fois : absents du compte, et
+ * absents de la recherche — neuf livres que rien à l'écran ne signalait. La
+ * recherche par titre les atteint désormais, ils rentrent donc dans le
+ * compte.
  */
 export async function compterSansCouverture(
   utilisateurId: string,
@@ -333,7 +335,6 @@ export async function compterSansCouverture(
     .where(
       and(
         eq(livres.utilisateurId, utilisateurId),
-        isNotNull(livres.isbn13),
         sql`${livres.couvertureUrl} is null`,
       ),
     );
@@ -344,9 +345,9 @@ export async function compterSansCouverture(
  * Complète les couvertures manquantes, par vagues.
  *
  * Aucun CSV n'en contient : ni Goodreads, ni StoryGraph, ni Bookmory. Elles
- * se récupèrent donc par ISBN, en écartant les images de remplacement que
- * les catalogues servent en HTTP 200 quand ils ne connaissent pas le livre
- * (voir lib/couvertures.ts).
+ * se récupèrent donc auprès des catalogues, par ISBN puis par titre et
+ * auteur, en écartant les images de remplacement qu'ils servent en HTTP 200
+ * quand ils ne connaissent pas le livre (voir lib/couvertures.ts).
  */
 export async function completerCouvertures(
   utilisateurId: string,
@@ -374,12 +375,16 @@ export async function completerCouvertures(
   curseur: number;
 }> {
   const candidats = await db
-    .select({ id: livres.id, isbn13: livres.isbn13 })
+    .select({
+      id: livres.id,
+      isbn13: livres.isbn13,
+      titre: livres.titre,
+      auteur: livres.auteur,
+    })
     .from(livres)
     .where(
       and(
         eq(livres.utilisateurId, utilisateurId),
-        isNotNull(livres.isbn13),
         sql`${livres.couvertureUrl} is null`,
         sql`${livres.id} > ${apresId}`,
       ),
@@ -387,23 +392,26 @@ export async function completerCouvertures(
     .orderBy(livres.id)
     .limit(limite);
 
-  // On écarte les ISBN vides ici, et pas au moment de l'appel : le curseur se
-  // lit par rang dans la liste envoyée, donc les deux listes doivent se
-  // correspondre livre pour livre.
-  const interrogeables = candidats.filter((c) => c.isbn13);
   const { trouvees, substituts, examines } = await resoudreCouvertures(
-    interrogeables.map((c) => c.isbn13!),
+    candidats.map((c) => ({
+      cle: String(c.id),
+      // Un ISBN vide vaut un ISBN absent : la recherche par titre prend le
+      // relais, au lieu d'interroger les catalogues avec une chaîne creuse.
+      isbn13: c.isbn13 || null,
+      titre: c.titre,
+      auteur: c.auteur,
+    })),
     { budgetMs },
   );
 
   // La vague a pu s'arrêter avant la fin du lot, faute de temps : le curseur
   // doit alors s'arrêter là aussi, sinon les livres non examinés seraient
   // sautés définitivement.
-  const traites = interrogeables.slice(0, examines);
-  const parIsbn = new Map(trouvees.map((c) => [c.isbn13, c.url]));
+  const traites = candidats.slice(0, examines);
+  const parCle = new Map(trouvees.map((c) => [c.cle, c.url]));
 
   for (const c of traites) {
-    const url = parIsbn.get(c.isbn13!);
+    const url = parCle.get(String(c.id));
     if (!url) continue;
     await db
       .update(livres)
@@ -417,7 +425,6 @@ export async function completerCouvertures(
     .where(
       and(
         eq(livres.utilisateurId, utilisateurId),
-        isNotNull(livres.isbn13),
         sql`${livres.couvertureUrl} is null`,
       ),
     );
