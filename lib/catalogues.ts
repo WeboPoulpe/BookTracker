@@ -178,7 +178,9 @@ type Resultat = {
  * déjà dans la liste du genre — inventer une valeur libre à partir d'un
  * libellé de catalogue remplirait le champ sans le renseigner.
  */
-function deduireGenre(rayons: string[]): { genre: string; sousGenre?: string } | null {
+export function deduireGenre(
+  rayons: string[],
+): { genre: string; sousGenre?: string } | null {
   const precis = rayons.filter((r) => !RAYONS_GENERIQUES.has(normaliser(r)));
   const generiques = rayons.filter((r) => RAYONS_GENERIQUES.has(normaliser(r)));
 

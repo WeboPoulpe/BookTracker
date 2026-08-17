@@ -17,6 +17,13 @@ import type { Resultat } from "@/lib/openlibrary";
 import { STATUTS } from "@/lib/validation";
 import { LIBELLE_STATUT } from "@/lib/format";
 
+/** Nom d'affichage des catalogues, pour la pastille et pour les pannes. */
+const NOM_SOURCE: Record<string, string> = {
+  openlibrary: "Open Library",
+  bnf: "BnF",
+  apple: "Apple Books",
+};
+
 type Brouillon = {
   titre: string;
   auteur: string;
@@ -53,6 +60,13 @@ export function AjoutLivre() {
   const [cherche, setCherche] = useState(false);
   const [sources, setSources] = useState<Record<string, string> | null>(null);
   const [toutesEnEchec, setToutesEnEchec] = useState(false);
+
+  // Les catalogues injoignables, nommés pour l'avertissement de liste
+  // partielle. Filtré sur les sources connues : une clé inattendue venue du
+  // serveur ne doit pas produire un « undefined ne répond pas ».
+  const manquantes = Object.entries(sources ?? {})
+    .filter(([cle, etat]) => etat === "echec" && cle in NOM_SOURCE)
+    .map(([cle]) => cle);
 
   const [brouillon, setBrouillon] = useState<Brouillon | null>(null);
   const [couverture, setCouverture] = useState<CouverturePreparee | null>(null);
@@ -385,18 +399,16 @@ export function AjoutLivre() {
         </div>
       ) : null}
 
-      {/* Une seule source tombée : les résultats de l'autre s'affichent
-          quand même, on signale juste que la liste est partielle. */}
-      {!toutesEnEchec && !cherche && sources?.openlibrary === "echec" ? (
+      {/* Une source tombée : les résultats des autres s'affichent quand même,
+          on signale juste ce que la liste a perdu au passage. Nommer les
+          survivantes une à une aurait fait trois phrases à maintenir pour
+          chaque combinaison. */}
+      {!toutesEnEchec && !cherche && manquantes.length > 0 ? (
         <p className="mt-3 text-[12px] text-encre-45">
-          Open Library ne répond pas — résultats de la BnF uniquement, sans
-          couverture ni pagination.
-        </p>
-      ) : null}
-      {!toutesEnEchec && !cherche && sources?.bnf === "echec" ? (
-        <p className="mt-3 text-[12px] text-encre-45">
-          La BnF ne répond pas — résultats d&apos;Open Library uniquement, dont
-          le catalogue français est incomplet.
+          {manquantes.map((s) => NOM_SOURCE[s]).join(" et ")}
+          {manquantes.length > 1 ? " ne répondent pas" : " ne répond pas"} — la
+          liste est partielle, et certaines fiches y perdent leur couverture ou
+          leur pagination.
         </p>
       ) : null}
 
@@ -442,7 +454,7 @@ export function AjoutLivre() {
                 </p>
                 <p className="mt-1 flex items-center gap-1.5">
                   <span className="rounded-pilule bg-rose-voile px-1.5 py-0.5 text-[10px] font-semibold text-rose-fonce ring-1 ring-rose-poudre">
-                    {r.source === "bnf" ? "BnF" : "Open Library"}
+                    {NOM_SOURCE[r.source]}
                   </span>
                   {r.pages ? (
                     <span className="chiffres text-[10.5px] text-encre-45">

@@ -8,7 +8,7 @@ import { resoudreGenre } from "./genres";
  * formulaire que l'utilisateur peut corriger, et l'ajout manuel reste ouvert.
  */
 
-export type Source = "openlibrary" | "bnf";
+export type Source = "openlibrary" | "bnf" | "apple";
 
 export type Resultat = {
   cle: string;
