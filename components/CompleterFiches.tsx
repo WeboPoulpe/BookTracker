@@ -22,11 +22,13 @@ import { nombre, pluriel } from "@/lib/format";
 export function CompleterFiches({
   sansCouverture,
   sansSynopsis,
+  sansGenre,
   total,
 }: {
   sansCouverture: number;
   sansSynopsis: number;
-  /** Livres à qui il manque l'un ou l'autre — le compte des vagues à mener */
+  sansGenre: number;
+  /** Livres à qui il manque au moins l'un des trois — le travail à mener */
   total: number;
 }) {
   const router = useRouter();
@@ -43,6 +45,7 @@ export function CompleterFiches({
 
     let trouves = 0;
     let synopsis = 0;
+    let genres = 0;
     let substituts = 0;
     let restants = total;
     let curseur = reprise;
@@ -64,13 +67,14 @@ export function CompleterFiches({
 
         trouves += d.trouves;
         synopsis += d.synopsis ?? 0;
+        genres += d.genres ?? 0;
         substituts += d.substituts ?? 0;
         restants = d.restants;
         curseur = d.curseur;
         examines += d.traites;
 
         setBilan(
-          `${nombre(trouves)} couverture(s), ${nombre(synopsis)} synopsis sur ${nombre(examines)} livres examinés…`,
+          `${nombre(trouves)} couverture(s), ${nombre(synopsis)} synopsis, ${nombre(genres)} genre(s) sur ${nombre(examines)} livres examinés…`,
         );
       }
 
@@ -78,7 +82,7 @@ export function CompleterFiches({
       // livres qu'un catalogue momentanément muet avait laissés de côté.
       setReprise(0);
       setBilan(
-        acquis(trouves, synopsis) +
+        acquis(trouves, synopsis, genres) +
           (substituts > 0
             ? `, ${nombre(substituts)} image(s) générique(s) écartée(s)`
             : "") +
@@ -93,8 +97,8 @@ export function CompleterFiches({
       // un échec sec le ferait croire perdu, et relancer semblerait repartir
       // de zéro. On dit donc ce qui est acquis.
       setBilan(
-        (trouves > 0 || synopsis > 0
-          ? `${acquis(trouves, synopsis)} avant l'interruption. `
+        (trouves > 0 || synopsis > 0 || genres > 0
+          ? `${acquis(trouves, synopsis, genres)} avant l'interruption. `
           : "") +
           "La recherche s'est arrêtée en chemin — relance pour reprendre là où elle en était.",
       );
@@ -109,8 +113,8 @@ export function CompleterFiches({
       <p className="text-[15px] font-medium">Compléter les fiches</p>
       <p className="mt-1 text-[12.5px] leading-relaxed text-encre-45">
         {total === 0
-          ? "Toutes tes fiches ont une image et un synopsis."
-          : `${detail(sansCouverture, sansSynopsis)} On cherche chez Apple Books par titre et auteur, puis par ISBN chez Open Library et Google Books ; les vignettes génériques sont écartées. Rien de ce que tu as déjà écrit n'est touché.`}
+          ? "Toutes tes fiches ont image, synopsis et genre."
+          : `${detail(sansCouverture, sansSynopsis, sansGenre)} On cherche chez Apple Books par titre et auteur, puis par ISBN chez Open Library et Google Books ; les vignettes génériques sont écartées. Rien de ce que tu as déjà écrit n'est touché.`}
       </p>
 
       {bilan ? (
@@ -133,8 +137,8 @@ export function CompleterFiches({
   );
 }
 
-/** « 3 couvertures et 12 synopsis ajoutés », en taisant ce qui vaut zéro. */
-function acquis(couvertures: number, synopsis: number): string {
+/** « 3 couvertures, 12 synopsis ajoutés », en taisant ce qui vaut zéro. */
+function acquis(couvertures: number, synopsis: number, genres: number): string {
   const bouts = [
     couvertures > 0
       ? pluriel(couvertures, "couverture ajoutée", "couvertures ajoutées")
@@ -142,16 +146,22 @@ function acquis(couvertures: number, synopsis: number): string {
     synopsis > 0
       ? pluriel(synopsis, "synopsis ajouté", "synopsis ajoutés")
       : null,
+    genres > 0 ? pluriel(genres, "genre ajouté", "genres ajoutés") : null,
   ].filter(Boolean);
 
   return bouts.length ? bouts.join(", ") : "Aucun complément trouvé";
 }
 
 /** Ce qui manque, en ne nommant que ce qui manque vraiment. */
-function detail(sansCouverture: number, sansSynopsis: number): string {
+function detail(
+  sansCouverture: number,
+  sansSynopsis: number,
+  sansGenre: number,
+): string {
   const bouts = [
     sansCouverture > 0 ? `${pluriel(sansCouverture, "livre")} sans image` : null,
     sansSynopsis > 0 ? `${nombre(sansSynopsis)} sans synopsis` : null,
+    sansGenre > 0 ? `${nombre(sansGenre)} sans genre` : null,
   ].filter(Boolean);
 
   return `${bouts.join(", ")}.`;

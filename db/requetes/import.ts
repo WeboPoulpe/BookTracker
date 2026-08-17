@@ -318,6 +318,19 @@ export async function importerLot(
 }
 
 /**
+ * Fiche à laquelle il manque quelque chose que les catalogues savent fournir.
+ *
+ * Une seule définition, partagée par le compte affiché, la sélection des
+ * vagues et le décompte des restants : trois copies auraient fini par
+ * diverger, et l'écran aurait annoncé un travail que la vague ne fait pas.
+ */
+const INCOMPLETE = sql`(
+  ${livres.couvertureUrl} is null
+  or ${livres.synopsis} is null or ${livres.synopsis} = ''
+  or ${livres.genre} is null or ${livres.genre} = ''
+)`;
+
+/**
  * Ce qui manque encore aux fiches, et que les catalogues savent fournir.
  *
  * Le compte des couvertures excluait les livres sans ISBN, faute de pouvoir
@@ -330,14 +343,18 @@ export async function importerLot(
  * de l'intrigue, ce que la quatrième de couverture est justement écrite pour
  * ne pas dire.
  */
-export async function compterFichesIncompletes(
-  utilisateurId: string,
-): Promise<{ sansCouverture: number; sansSynopsis: number; total: number }> {
+export async function compterFichesIncompletes(utilisateurId: string): Promise<{
+  sansCouverture: number;
+  sansSynopsis: number;
+  sansGenre: number;
+  total: number;
+}> {
   const [ligne] = await db
     .select({
       sansCouverture: sql<number>`count(*) filter (where ${livres.couvertureUrl} is null)::int`,
       sansSynopsis: sql<number>`count(*) filter (where ${livres.synopsis} is null or ${livres.synopsis} = '')::int`,
-      total: sql<number>`count(*) filter (where ${livres.couvertureUrl} is null or ${livres.synopsis} is null or ${livres.synopsis} = '')::int`,
+      sansGenre: sql<number>`count(*) filter (where ${livres.genre} is null or ${livres.genre} = '')::int`,
+      total: sql<number>`count(*) filter (where ${INCOMPLETE})::int`,
     })
     .from(livres)
     .where(eq(livres.utilisateurId, utilisateurId));
@@ -345,6 +362,7 @@ export async function compterFichesIncompletes(
   return {
     sansCouverture: ligne?.sansCouverture ?? 0,
     sansSynopsis: ligne?.sansSynopsis ?? 0,
+    sansGenre: ligne?.sansGenre ?? 0,
     total: ligne?.total ?? 0,
   };
 }
@@ -382,6 +400,7 @@ export async function completerFiches(
   traites: number;
   trouves: number;
   synopsis: number;
+  genres: number;
   substituts: number;
   restants: number;
   /** Dernier identifiant examiné, à repasser tel quel à la vague suivante */
@@ -395,12 +414,14 @@ export async function completerFiches(
       auteur: livres.auteur,
       couvertureUrl: livres.couvertureUrl,
       synopsis: livres.synopsis,
+      genre: livres.genre,
+      sousGenre: livres.sousGenre,
     })
     .from(livres)
     .where(
       and(
         eq(livres.utilisateurId, utilisateurId),
-        sql`(${livres.couvertureUrl} is null or ${livres.synopsis} is null or ${livres.synopsis} = '')`,
+        INCOMPLETE,
         sql`${livres.id} > ${apresId}`,
       ),
     )
@@ -417,6 +438,7 @@ export async function completerFiches(
       auteur: c.auteur,
       besoinCouverture: c.couvertureUrl === null,
       besoinSynopsis: !c.synopsis,
+      besoinGenre: !c.genre,
     })),
     { budgetMs },
   );
@@ -429,14 +451,21 @@ export async function completerFiches(
 
   let trouves = 0;
   let synopsis = 0;
+  let genres = 0;
 
   for (const c of traites) {
     const apport = parCle.get(String(c.id));
     if (!apport) continue;
 
-    // Les besoins ont été calculés avant la vague : les revérifier ici
-    // n'apporterait rien, mais poser un champ déjà rempli l'écraserait.
-    const set: { couvertureUrl?: string; synopsis?: string } = {};
+    // Les besoins ont été calculés avant la vague : les revérifier ici coûte
+    // peu, et poser un champ rempli entre-temps l'écraserait.
+    const set: {
+      couvertureUrl?: string;
+      synopsis?: string;
+      genre?: string;
+      sousGenre?: string;
+    } = {};
+
     if (apport.couverture && c.couvertureUrl === null) {
       set.couvertureUrl = apport.couverture.url;
       trouves += 1;
@@ -444,6 +473,13 @@ export async function completerFiches(
     if (apport.synopsis && !c.synopsis) {
       set.synopsis = apport.synopsis;
       synopsis += 1;
+    }
+    if (apport.genre && !c.genre) {
+      set.genre = apport.genre;
+      // Le sous-genre ne voyage jamais seul : posé sous un genre saisi à la
+      // main, il pourrait contredire ce que la lectrice a choisi.
+      if (apport.sousGenre && !c.sousGenre) set.sousGenre = apport.sousGenre;
+      genres += 1;
     }
     if (Object.keys(set).length === 0) continue;
 
@@ -453,17 +489,13 @@ export async function completerFiches(
   const [{ restants }] = await db
     .select({ restants: sql<number>`count(*)::int` })
     .from(livres)
-    .where(
-      and(
-        eq(livres.utilisateurId, utilisateurId),
-        sql`(${livres.couvertureUrl} is null or ${livres.synopsis} is null or ${livres.synopsis} = '')`,
-      ),
-    );
+    .where(and(eq(livres.utilisateurId, utilisateurId), INCOMPLETE));
 
   return {
     traites: traites.length,
     trouves,
     synopsis,
+    genres,
     substituts,
     restants,
     curseur: traites.length ? traites[traites.length - 1].id : apresId,

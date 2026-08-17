@@ -69,6 +69,7 @@ export default async function Reglages() {
             <CompleterFiches
               sansCouverture={incompletes.sansCouverture}
               sansSynopsis={incompletes.sansSynopsis}
+              sansGenre={incompletes.sansGenre}
               total={incompletes.total}
             />
           </div>

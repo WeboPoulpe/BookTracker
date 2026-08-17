@@ -39,6 +39,7 @@ async function main() {
   let vague = 0;
   let cumulTrouves = 0;
   let cumulSynopsis = 0;
+  let cumulGenres = 0;
   let cumulSubstituts = 0;
   let curseur = 0;
 
@@ -54,10 +55,11 @@ async function main() {
     if (r.traites === 0) break;
     cumulTrouves += r.trouves;
     cumulSynopsis += r.synopsis;
+    cumulGenres += r.genres;
     cumulSubstituts += r.substituts;
     curseur = r.curseur;
     console.log(
-      `Vague ${vague} : ${r.trouves} couverture(s), ${r.synopsis} synopsis sur ${r.traites} examinés` +
+      `Vague ${vague} : ${r.trouves} couverture(s), ${r.synopsis} synopsis, ${r.genres} genre(s) sur ${r.traites} examinés` +
         (r.substituts ? `, ${r.substituts} substituts écartés` : "") +
         ` — ${r.restants} fiche(s) encore incomplètes`,
     );
@@ -74,7 +76,7 @@ async function main() {
 
   console.log(
     `\nBilan : ${fin.couvertes}/${fin.total} illustrés, ${fin.resumees}/${fin.total} avec synopsis ` +
-      `(+${cumulTrouves} image(s), +${cumulSynopsis} synopsis cette session, ${cumulSubstituts} substituts écartés).`,
+      `(+${cumulTrouves} image(s), +${cumulSynopsis} synopsis, +${cumulGenres} genre(s) cette session, ${cumulSubstituts} substituts écartés).`,
   );
 
   const orphelins = await db

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { resoudreGenre, SOUS_GENRES } from "./genres";
 import { memeTitre, normaliser, texteDepuisHtml } from "./texte";
 
 /**
@@ -36,12 +37,15 @@ export type LivreAEnrichir = {
   auteur: string;
   besoinCouverture: boolean;
   besoinSynopsis: boolean;
+  besoinGenre: boolean;
 };
 
 export type Apport = {
   cle: string;
   couverture?: { url: string; empreinte: string };
   synopsis?: string;
+  genre?: string;
+  sousGenre?: string;
 };
 
 /**
@@ -139,7 +143,60 @@ function borner(texte: string): string {
     : `${tronque.trimEnd()}…`;
 }
 
-type Resultat = { titre: string; auteur: string; vignette: string; description: string };
+/**
+ * Rayons trop larges pour désigner un genre.
+ *
+ * Apple range tout roman sous « Romans et littérature », et tout livre sous
+ * « Livres ». Le référentiel, lui, fait exprès de rabattre « roman » et
+ * « littérature » sur « contemporain » — un import ne doit jamais produire
+ * une bibliothèque entièrement grise. Mais si on les lit dans l'ordre rendu,
+ * le rayon générique arrive souvent avant le genre réel : « Le jour où Rose
+ * a disparu » repartait en « contemporain » alors qu'Apple disait aussi
+ * « Romance contemporaine ». On les met donc de côté pour un second tour.
+ */
+const RAYONS_GENERIQUES = new Set([
+  "livres",
+  "romans et litterature",
+  "litterature",
+  "fiction",
+  "ebooks",
+]);
+
+type Resultat = {
+  titre: string;
+  auteur: string;
+  vignette: string;
+  description: string;
+  genres: string[];
+};
+
+/**
+ * Genre et sous-genre déduits des rayons d'Apple.
+ *
+ * Le plus précis l'emporte : les rayons génériques ne servent que si rien
+ * d'autre ne se laisse résoudre. Le sous-genre n'est retenu que s'il figure
+ * déjà dans la liste du genre — inventer une valeur libre à partir d'un
+ * libellé de catalogue remplirait le champ sans le renseigner.
+ */
+function deduireGenre(rayons: string[]): { genre: string; sousGenre?: string } | null {
+  const precis = rayons.filter((r) => !RAYONS_GENERIQUES.has(normaliser(r)));
+  const generiques = rayons.filter((r) => RAYONS_GENERIQUES.has(normaliser(r)));
+
+  let genre: string | null = null;
+  for (const rayon of [...precis, ...generiques]) {
+    const g = resoudreGenre(rayon);
+    if (g.cle !== "inconnu") {
+      genre = g.cle;
+      break;
+    }
+  }
+  if (!genre) return null;
+
+  const proposes = (SOUS_GENRES[genre] ?? []).map(normaliser);
+  const sousGenre = precis.find((r) => proposes.includes(normaliser(r)));
+
+  return { genre, sousGenre };
+}
 
 /**
  * Le résultat désigne-t-il bien notre livre ?
@@ -183,7 +240,12 @@ function correspond(r: Resultat, titre: string, auteur: string): boolean {
 async function chercherApple(
   titre: string,
   auteur: string,
-): Promise<{ vignette: string | null; synopsis: string | null } | null> {
+): Promise<{
+  vignette: string | null;
+  synopsis: string | null;
+  genre: string | null;
+  sousGenre: string | null;
+} | null> {
   const terme = encodeURIComponent(`${titre} ${auteur}`);
   const r = await fetch(
     `https://itunes.apple.com/search?country=FR&entity=ebook&limit=5&term=${terme}`,
@@ -197,6 +259,7 @@ async function chercherApple(
       artistName?: string;
       artworkUrl100?: string;
       description?: string;
+      genres?: string[];
     }>;
   };
 
@@ -207,14 +270,18 @@ async function chercherApple(
       auteur: brut.artistName,
       vignette: brut.artworkUrl100 ?? "",
       description: brut.description ?? "",
+      genres: brut.genres ?? [],
     };
     if (!correspond(candidat, titre, auteur)) continue;
 
     const propre = candidat.description
       ? texteDepuisHtml(candidat.description)
       : "";
+    const rayons = deduireGenre(candidat.genres);
 
     return {
+      genre: rayons?.genre ?? null,
+      sousGenre: rayons?.sousGenre ?? null,
       // La vignette est servie en 100 px, illisible sur une étagère. Le
       // gabarit se réécrit dans l'adresse ; Apple rend alors la même image en
       // grand.
@@ -228,6 +295,9 @@ async function chercherApple(
   return null;
 }
 
+/** L'apport porte-t-il quoi que ce soit ? Le `cle` seul ne compte pas. */
+const utile = (a: Apport) => Boolean(a.couverture || a.synopsis || a.genre);
+
 /**
  * Ce que les catalogues savent apporter à ce livre.
  *
@@ -238,12 +308,16 @@ async function chercherApple(
 async function enrichirUn(livre: LivreAEnrichir): Promise<Apport | null> {
   const apport: Apport = { cle: livre.cle };
 
-  if (livre.besoinSynopsis || livre.besoinCouverture) {
+  if (livre.besoinSynopsis || livre.besoinCouverture || livre.besoinGenre) {
     try {
       const apple = await chercherApple(livre.titre, livre.auteur);
       if (apple) {
         if (livre.besoinSynopsis && apple.synopsis) {
           apport.synopsis = apple.synopsis;
+        }
+        if (livre.besoinGenre && apple.genre) {
+          apport.genre = apple.genre;
+          if (apple.sousGenre) apport.sousGenre = apple.sousGenre;
         }
         if (livre.besoinCouverture && apple.vignette) {
           const image = await imagePlausible(apple.vignette);
@@ -272,7 +346,7 @@ async function enrichirUn(livre: LivreAEnrichir): Promise<Apport | null> {
     }
   }
 
-  return apport.couverture || apport.synopsis ? apport : null;
+  return utile(apport) ? apport : null;
 }
 
 /**
@@ -332,7 +406,7 @@ export async function enrichirFiches(
       }
       return a;
     })
-    .filter((a) => a.couverture || a.synopsis);
+    .filter(utile);
 
   return { apports, substituts, examines };
 }

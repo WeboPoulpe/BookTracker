@@ -28,6 +28,7 @@ async function main() {
       total: sql<number>`count(*)::int`,
       avecImage: sql<number>`count(*) filter (where ${livres.couvertureUrl} is not null)::int`,
       avecSynopsis: sql<number>`count(*) filter (where ${livres.synopsis} is not null and ${livres.synopsis} <> '')::int`,
+      avecGenre: sql<number>`count(*) filter (where ${livres.genre} is not null and ${livres.genre} <> '')::int`,
       sansImageSansIsbn: sql<number>`count(*) filter (where ${livres.couvertureUrl} is null and (${livres.isbn13} is null or ${livres.isbn13} = ''))::int`,
     })
     .from(livres);
@@ -36,6 +37,7 @@ async function main() {
   console.log(`total                 ${String(totaux.total).padStart(4)}`);
   console.log(`avec image            ${String(totaux.avecImage).padStart(4)}`);
   console.log(`avec synopsis         ${String(totaux.avecSynopsis).padStart(4)}`);
+  console.log(`avec genre            ${String(totaux.avecGenre).padStart(4)}`);
   console.log(
     `sans image, sans ISBN ${String(totaux.sansImageSansIsbn).padStart(4)}  ← seule la recherche par titre les atteint`,
   );
@@ -48,10 +50,13 @@ async function main() {
       auteur: livres.auteur,
       couvertureUrl: livres.couvertureUrl,
       synopsis: livres.synopsis,
+      genre: livres.genre,
     })
     .from(livres)
     .where(
-      sql`${livres.couvertureUrl} is null or ${livres.synopsis} is null or ${livres.synopsis} = ''`,
+      sql`${livres.couvertureUrl} is null
+        or ${livres.synopsis} is null or ${livres.synopsis} = ''
+        or ${livres.genre} is null or ${livres.genre} = ''`,
     )
     .orderBy(livres.id)
     .limit(ECHANTILLON);
@@ -72,6 +77,7 @@ async function main() {
       auteur: c.auteur,
       besoinCouverture: c.couvertureUrl === null,
       besoinSynopsis: !c.synopsis,
+      besoinGenre: !c.genre,
     })),
     // Budget large : ici on cherche à mesurer un taux de réussite, pas à
     // tenir dans la fenêtre d'une fonction serveur.
@@ -97,13 +103,21 @@ async function main() {
         ? `${a.synopsis.length} caractères — « ${a.synopsis.slice(0, 70).replace(/\s+/g, " ")}… »`
         : "introuvable";
     console.log(`    synopsis ${texte}`);
+
+    const genre = c.genre
+      ? "déjà présent"
+      : a?.genre
+        ? `${a.genre}${a.sousGenre ? ` · ${a.sousGenre}` : ""}`
+        : "introuvable";
+    console.log(`    genre    ${genre}`);
   }
 
   const couvertures = apports.filter((a) => a.couverture).length;
   const synopsis = apports.filter((a) => a.synopsis).length;
+  const genres = apports.filter((a) => a.genre).length;
   const secondes = ((Date.now() - debut) / 1000).toFixed(1);
   console.log(
-    `\n— Bilan — ${couvertures} couverture(s), ${synopsis} synopsis sur ${examines} examinés, ${substituts} substitut(s) écarté(s), ${secondes} s`,
+    `\n— Bilan — ${couvertures} couverture(s), ${synopsis} synopsis, ${genres} genre(s) sur ${examines} examinés, ${substituts} substitut(s) écarté(s), ${secondes} s`,
   );
 }
 
