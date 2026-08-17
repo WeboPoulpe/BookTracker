@@ -26,6 +26,26 @@ export type SerieSuivie = {
 };
 
 /**
+ * Noms des séries déjà créées, pour l'autocomplétion du champ « série ».
+ *
+ * Une série se crée par la simple saisie de son nom : taper « Les Sept
+ * Soeurs » là où la bibliothèque connaît « Les Sept Sœurs » donnerait deux
+ * séries de deux tomes au lieu d'une de quatre, et le suivi des tomes — le
+ * cœur de l'app — s'en trouverait faussé sans qu'aucun écran ne le signale.
+ * Proposer l'existant est la façon la plus sûre de n'en créer qu'une.
+ */
+export async function listerNomsSeries(
+  utilisateurId: string,
+): Promise<string[]> {
+  const lignes = await db
+    .select({ nom: series.nom })
+    .from(series)
+    .where(eq(series.utilisateurId, utilisateurId))
+    .orderBy(asc(series.nom));
+  return lignes.map((l) => l.nom);
+}
+
+/**
  * Séries avec leur avancement.
  *
  * Le suivi de séries est le critère qui éliminait la moitié des produits du

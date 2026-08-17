@@ -5,7 +5,18 @@ import { citations, lectures, livres, series, sessions } from "@/db/schema";
 import { aujourdhui } from "@/lib/date";
 import type { LivreValide } from "@/lib/validation";
 
-/** Trouve la série par son nom, ou la crée. Insensible à la casse. */
+/**
+ * Trouve la série par son nom, ou la crée.
+ *
+ * Insensible à la casse **et aux accents** : « Les Sept Soeurs » saisi à la
+ * main doit rejoindre « Les Sept Sœurs » plutôt que fonder une série jumelle.
+ * Deux séries de deux tomes au lieu d'une de quatre, c'est un suivi de tomes
+ * faux que rien à l'écran ne dénonce — on ne le découvre qu'en cherchant
+ * pourquoi le prochain tome proposé n'est pas le bon.
+ *
+ * L'autocomplétion du champ évite déjà le cas le plus courant ; ce filet-ci
+ * couvre la saisie hors ligne, l'import et la frappe sans regarder.
+ */
 export async function resoudreSerie(
   utilisateurId: string,
   nom: string | null | undefined,
@@ -20,7 +31,7 @@ export async function resoudreSerie(
     .where(
       and(
         eq(series.utilisateurId, utilisateurId),
-        sql`lower(${series.nom}) = lower(${propre})`,
+        sql`lower(unaccent(${series.nom})) = lower(unaccent(${propre}))`,
       ),
     )
     .limit(1);

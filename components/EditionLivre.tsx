@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { Bouton } from "@/components/ui/Bouton";
 import { Champ, Segments, Selecteur, ZoneTexte } from "@/components/ui/Champ";
+import { ChampSerie, oublierSeries } from "@/components/ui/ChampSerie";
 import { SelecteurSousGenre } from "@/components/ui/SelecteurSousGenre";
 // Le statut ne se change pas ici : il ouvre ou clôt une lecture, et vit donc
 // avec les pastilles de la fiche, pas dans un formulaire de métadonnées.
@@ -118,6 +119,10 @@ export function EditionLivre({
       setErreur(r.message);
       return;
     }
+    // La série a pu être créée à l'instant : la garder en cache priverait le
+    // livre suivant de la proposer, et c'est ainsi qu'on finit avec deux
+    // orthographes de la même série.
+    oublierSeries();
     onFermer();
     onEnregistre();
   }
@@ -151,10 +156,9 @@ export function EditionLivre({
         />
 
         <div className="grid grid-cols-2 gap-3">
-          <Champ
-            label="Série"
+          <ChampSerie
             value={v.serie}
-            onChange={(e) => set("serie")(e.target.value)}
+            onChange={set("serie")}
             placeholder="Les Sept Sœurs"
             aide="Vider pour détacher"
           />

@@ -7,6 +7,7 @@ import { ChoixCouverture } from "@/components/ChoixCouverture";
 import { Couverture } from "@/components/Couverture";
 import { Bouton } from "@/components/ui/Bouton";
 import { Champ, Segments, Selecteur } from "@/components/ui/Champ";
+import { ChampSerie, oublierSeries } from "@/components/ui/ChampSerie";
 import { SelecteurSousGenre } from "@/components/ui/SelecteurSousGenre";
 import { IconeRecherche, IconeRetour } from "@/components/ui/Icones";
 import { envoyer } from "@/lib/client-api";
@@ -189,6 +190,11 @@ export function AjoutLivre() {
       return;
     }
 
+    // La série a pu être créée à l'instant : la garder en cache priverait le
+    // livre suivant de la proposer, et c'est ainsi qu'on finit avec deux
+    // orthographes de la même série.
+    oublierSeries();
+
     const id = r.data.livre.id;
 
     // La couverture part après le livre : elle a besoin de son identifiant.
@@ -252,10 +258,9 @@ export function AjoutLivre() {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Champ
-            label="Série"
+          <ChampSerie
             value={brouillon.serie}
-            onChange={(e) => set("serie")(e.target.value)}
+            onChange={set("serie")}
             placeholder="Les Sept Sœurs"
           />
           <Champ
