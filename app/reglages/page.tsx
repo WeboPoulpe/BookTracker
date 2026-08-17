@@ -71,6 +71,7 @@ export default async function Reglages() {
               sansSynopsis={incompletes.sansSynopsis}
               sansGenre={incompletes.sansGenre}
               total={incompletes.total}
+              ignorees={incompletes.ignorees}
             />
           </div>
 

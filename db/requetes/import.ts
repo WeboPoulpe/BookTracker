@@ -430,10 +430,28 @@ const SANS_COUVERTURE = sql<boolean>`(
  * diverger, et l'écran aurait annoncé un travail que la vague ne fait pas.
  */
 const INCOMPLETE = sql`(
-  ${SANS_COUVERTURE}
-  or ${livres.synopsis} is null or ${livres.synopsis} = ''
-  or ${livres.genre} is null or ${livres.genre} = ''
+  ${livres.ignorerComplement} is not true
+  and (
+    ${SANS_COUVERTURE}
+    or ${livres.synopsis} is null or ${livres.synopsis} = ''
+    or ${livres.genre} is null or ${livres.genre} = ''
+  )
 )`;
+
+/** Remet dans la file toutes les fiches mises de côté. Rend leur nombre. */
+export async function reproposerFiches(utilisateurId: string): Promise<number> {
+  const r = await db
+    .update(livres)
+    .set({ ignorerComplement: false })
+    .where(
+      and(
+        eq(livres.utilisateurId, utilisateurId),
+        eq(livres.ignorerComplement, true),
+      ),
+    )
+    .returning({ id: livres.id });
+  return r.length;
+}
 
 /**
  * Ce qui manque encore aux fiches, et que les catalogues savent fournir.
@@ -453,13 +471,19 @@ export async function compterFichesIncompletes(utilisateurId: string): Promise<{
   sansSynopsis: number;
   sansGenre: number;
   total: number;
+  ignorees: number;
 }> {
   const [ligne] = await db
     .select({
-      sansCouverture: sql<number>`count(*) filter (where ${SANS_COUVERTURE})::int`,
-      sansSynopsis: sql<number>`count(*) filter (where ${livres.synopsis} is null or ${livres.synopsis} = '')::int`,
-      sansGenre: sql<number>`count(*) filter (where ${livres.genre} is null or ${livres.genre} = '')::int`,
+      // Les trois détails ne comptent que les fiches encore proposées : une
+      // fiche mise en sourdine ne doit pas gonfler un chiffre que le bouton
+      // ne traitera jamais.
+      sansCouverture: sql<number>`count(*) filter (where ${INCOMPLETE} and ${SANS_COUVERTURE})::int`,
+      sansSynopsis: sql<number>`count(*) filter (where ${INCOMPLETE} and (${livres.synopsis} is null or ${livres.synopsis} = ''))::int`,
+      sansGenre: sql<number>`count(*) filter (where ${INCOMPLETE} and (${livres.genre} is null or ${livres.genre} = ''))::int`,
       total: sql<number>`count(*) filter (where ${INCOMPLETE})::int`,
+      /** Mises en sourdine : dites à part, pour que le silence reste visible. */
+      ignorees: sql<number>`count(*) filter (where ${livres.ignorerComplement} is true)::int`,
     })
     .from(livres)
     .where(eq(livres.utilisateurId, utilisateurId));
@@ -469,6 +493,7 @@ export async function compterFichesIncompletes(utilisateurId: string): Promise<{
     sansSynopsis: ligne?.sansSynopsis ?? 0,
     sansGenre: ligne?.sansGenre ?? 0,
     total: ligne?.total ?? 0,
+    ignorees: ligne?.ignorees ?? 0,
   };
 }
 

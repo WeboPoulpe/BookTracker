@@ -59,6 +59,8 @@ const champsLivre = z.object({
   emoji: optionnel(z.string().trim().max(8)),
   prix: optionnel(z.coerce.number().min(0).max(100_000)),
   dateSortie: optionnel(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+  /** Cesse de proposer cette fiche au complètement automatique. */
+  ignorerComplement: z.boolean().optional(),
 });
 
 /** Création : les défauts ne s'appliquent qu'ici, sur un objet complet. */

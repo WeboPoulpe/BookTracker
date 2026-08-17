@@ -105,6 +105,20 @@ export const livres = pgTable(
 
     prix: numeric("prix", { precision: 6, scale: 2, mode: "number" }),
     dateSortie: date("date_sortie"),
+
+    /**
+     * Fiche que les catalogues ne sauront pas compléter, et qu'on cesse de
+     * proposer.
+     *
+     * Certains livres n'existent dans aucun catalogue — guides non officiels,
+     * éditions confidentielles. Ils revenaient à chaque passe de
+     * complètement, en tête d'une liste de tâches qu'on ne pouvait jamais
+     * finir. Les taire est un choix de la lectrice, pas une déduction : rien
+     * ne distingue en base un livre introuvable d'un livre pas encore
+     * cherché.
+     */
+    ignorerComplement: boolean("ignorer_complement").default(false),
+
     creeLe: timestamp("cree_le", { withTimezone: true }).defaultNow(),
   },
   (t) => [

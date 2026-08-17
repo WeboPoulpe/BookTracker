@@ -35,21 +35,66 @@ export function CompleterFiches({
   sansSynopsis,
   sansGenre,
   total,
+  ignorees,
 }: {
   sansCouverture: number;
   sansSynopsis: number;
   sansGenre: number;
   /** Livres à qui il manque au moins l'un des trois — le travail à mener */
   total: number;
+  /** Fiches mises de côté, exclues du compte ci-dessus */
+  ignorees: number;
 }) {
   const router = useRouter();
   const [encours, setEncours] = useState(false);
   const [bilan, setBilan] = useState<string | null>(null);
   const [restantes, setRestantes] = useState<Incomplete[]>([]);
+  const [tues, setTues] = useState<Set<number>>(new Set());
+  const [erreurLigne, setErreurLigne] = useState<string | null>(null);
   // Point de reprise après une interruption : sans lui, un nouvel essai
   // réexaminerait d'abord tous les livres que le premier n'a pas su
   // compléter, et n'atteindrait jamais la suite.
   const [reprise, setReprise] = useState(0);
+
+  /**
+   * Cesse de proposer cette fiche.
+   *
+   * La ligne disparaît sans attendre le serveur : l'aller-retour est court,
+   * mais voir la ligne rester après avoir cliqué donne l'impression que rien
+   * ne s'est passé, et on reclique. En cas d'échec elle revient.
+   */
+  async function taire(id: number) {
+    setTues((s) => new Set(s).add(id));
+    try {
+      const r = await fetch(`/api/livres/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ignorerComplement: true }),
+      });
+      if (!r.ok) throw new Error("refusé");
+      setRestantes((l) => l.filter((f) => f.id !== id));
+      router.refresh();
+    } catch {
+      setTues((s) => {
+        const c = new Set(s);
+        c.delete(id);
+        return c;
+      });
+      setErreurLigne("Cette fiche n'a pas pu être mise de côté.");
+    }
+  }
+
+  /** Remet toutes les fiches tues dans la file. */
+  async function reproposer() {
+    try {
+      const r = await fetch("/api/livres/reproposer", { method: "POST" });
+      if (!r.ok) throw new Error("refusé");
+      setTues(new Set());
+      router.refresh();
+    } catch {
+      setErreurLigne("Les fiches mises de côté n'ont pas pu être reproposées.");
+    }
+  }
 
   async function lancer() {
     setEncours(true);
@@ -137,6 +182,10 @@ export function CompleterFiches({
         <p className="mt-2 text-[13px] leading-relaxed text-encre-70">{bilan}</p>
       ) : null}
 
+      {erreurLigne ? (
+        <p className="mt-2 text-[12px] text-[#A8324A]">{erreurLigne}</p>
+      ) : null}
+
       {/* Nommer les fiches restantes, et non les compter seulement : un
           nombre indique qu'il y a du travail, un lien permet de le faire.
           Chaque ligne dit aussi ce qui manque, pour ouvrir la fiche en
@@ -144,10 +193,10 @@ export function CompleterFiches({
       {restantes.length > 0 ? (
         <ul className="mt-2 space-y-1.5">
           {restantes.map((f) => (
-            <li key={f.id}>
+            <li key={f.id} className="flex items-baseline gap-2">
               <Link
                 href={`/bibliotheque/${f.id}`}
-                className="flex items-baseline justify-between gap-3 active:text-encre"
+                className="flex min-w-0 flex-1 items-baseline justify-between gap-3 active:text-encre"
               >
                 <span className="min-w-0 flex-1 truncate text-[13px] text-encre-70">
                   {f.titre}
@@ -157,6 +206,19 @@ export function CompleterFiches({
                   {manques(f)}
                 </span>
               </Link>
+              {/* Certains livres n'existent dans aucun catalogue — guides non
+                  officiels, éditions confidentielles. Sans ce geste, ils
+                  reviennent en tête à chaque passe, dans une liste de tâches
+                  qu'on ne peut jamais finir. */}
+              <button
+                type="button"
+                onClick={() => taire(f.id)}
+                disabled={tues.has(f.id)}
+                aria-label={`Ne plus proposer « ${f.titre} »`}
+                className="shrink-0 text-[11.5px] text-encre-45 underline underline-offset-2 active:text-encre disabled:opacity-40"
+              >
+                {tues.has(f.id) ? "…" : "ignorer"}
+              </button>
             </li>
           ))}
         </ul>
@@ -173,6 +235,24 @@ export function CompleterFiches({
             {encours ? "Recherche…" : "Compléter les fiches"}
           </Bouton>
         </div>
+      ) : null}
+
+      {/* Le silence reste visible : sans cette ligne, une fiche mise de côté
+          disparaîtrait sans laisser de trace, et on ne saurait plus qu'elle
+          attend. Le retour est global — on se souvient d'en avoir tu, pas
+          lesquelles. */}
+      {ignorees > 0 ? (
+        <p className="mt-3 text-[12px] text-encre-45">
+          {pluriel(ignorees, "fiche mise de côté", "fiches mises de côté")}
+          {" · "}
+          <button
+            type="button"
+            onClick={reproposer}
+            className="underline underline-offset-2 active:text-encre"
+          >
+            les reproposer
+          </button>
+        </p>
       ) : null}
     </div>
   );
