@@ -46,7 +46,7 @@ const SOURCES = [
   },
 ] as const;
 
-async function telecharger(url: string, delaiMs = 8000) {
+async function telecharger(url: string, delaiMs = 4000) {
   const minuteur = AbortSignal.timeout(delaiMs);
   const r = await fetch(url, {
     signal: minuteur,
@@ -92,14 +92,33 @@ async function chercher(isbn13: string): Promise<Couverture | null> {
  */
 export async function resoudreCouvertures(
   isbns: string[],
-  /** Plafond de débit : Open Library coupe au-delà de 10 requêtes par seconde */
-  pauseMs = 120,
-): Promise<{ trouvees: Couverture[]; substituts: number }> {
+  options: {
+    /** Plafond de débit : Open Library coupe au-delà de 10 requêtes/seconde */
+    pauseMs?: number;
+    /**
+     * Budget de temps, en millisecondes.
+     *
+     * C'est lui qui borne la vague, pas le nombre de livres : un catalogue
+     * lent transforme vingt-cinq recherches en plusieurs minutes, et la
+     * fonction serveur est coupée bien avant — la vague entière est alors
+     * perdue, y compris les couvertures déjà trouvées. On rend donc la main
+     * de nous-mêmes, en disant jusqu'où on est allé.
+     */
+    budgetMs?: number;
+  } = {},
+): Promise<{ trouvees: Couverture[]; substituts: number; examines: number }> {
+  const { pauseMs = 120, budgetMs = 20_000 } = options;
   const brut: Couverture[] = [];
+  const debut = Date.now();
+  let examines = 0;
 
   for (const isbn of isbns) {
     const c = await chercher(isbn);
+    examines += 1;
     if (c) brut.push(c);
+    // Au moins un livre est toujours traité, sinon une vague trop lente
+    // n'avancerait jamais et la boucle appelante tournerait à vide.
+    if (Date.now() - debut > budgetMs) break;
     await new Promise((r) => setTimeout(r, pauseMs));
   }
 
@@ -108,5 +127,5 @@ export async function resoudreCouvertures(
 
   const trouvees = brut.filter((c) => compte.get(c.empreinte) === 1);
 
-  return { trouvees, substituts: brut.length - trouvees.length };
+  return { trouvees, substituts: brut.length - trouvees.length, examines };
 }

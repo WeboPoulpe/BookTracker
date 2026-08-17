@@ -8,6 +8,7 @@ import { JournalLivre, LecturesLivre } from "@/components/JournalLivre";
 import { TexteDepliable } from "@/components/TexteDepliable";
 import { Section } from "@/components/ui/EnTete";
 import { IconeRetour } from "@/components/ui/Icones";
+import { LienReglages } from "@/components/ui/LienReglages";
 import { livreParId } from "@/db/requetes/livres";
 import { duree, libelleTome, nombre, pourcent, progression } from "@/lib/format";
 import { resoudreGenre } from "@/lib/genres";
@@ -49,13 +50,18 @@ export default async function FicheLivre({
             "linear-gradient(180deg, var(--color-velin) 60%, transparent 100%)",
         }}
       >
-        <Link
-          href="/bibliotheque"
-          className="-ml-1.5 inline-flex min-h-[44px] items-center gap-1 text-[15px] font-medium text-encre-70"
-        >
-          <IconeRetour className="h-5 w-5" />
-          Bibliothèque
-        </Link>
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            href="/bibliotheque"
+            className="-ml-1.5 inline-flex min-h-[44px] items-center gap-1 text-[15px] font-medium text-encre-70"
+          >
+            <IconeRetour className="h-5 w-5" />
+            Bibliothèque
+          </Link>
+          {/* Cet écran n'a pas d'EnTete : la roue s'y ajoute à la main pour
+              qu'aucune page n'y échappe. */}
+          <LienReglages />
+        </div>
       </div>
 
       {/* Bandeau teinté par le genre : la fiche prend la couleur du livre */}

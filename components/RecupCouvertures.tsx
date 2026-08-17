@@ -19,6 +19,10 @@ export function RecupCouvertures({ manquantes }: { manquantes: number }) {
   const router = useRouter();
   const [encours, setEncours] = useState(false);
   const [bilan, setBilan] = useState<string | null>(null);
+  // Point de reprise après une interruption : sans lui, un nouvel essai
+  // réexaminerait d'abord tous les livres que le premier n'a pas su
+  // illustrer, et n'atteindrait jamais la suite.
+  const [reprise, setReprise] = useState(0);
 
   async function lancer() {
     setEncours(true);
@@ -27,7 +31,7 @@ export function RecupCouvertures({ manquantes }: { manquantes: number }) {
     let trouves = 0;
     let substituts = 0;
     let restants = manquantes;
-    let curseur = 0;
+    let curseur = reprise;
     let examines = 0;
 
     try {
@@ -55,6 +59,9 @@ export function RecupCouvertures({ manquantes }: { manquantes: number }) {
         );
       }
 
+      // Passe terminée : le prochain essai repart du début, pour retenter les
+      // livres qu'un catalogue momentanément muet avait laissés de côté.
+      setReprise(0);
       setBilan(
         `${pluriel(trouves, "couverture ajoutée", "couvertures ajoutées")}` +
           (substituts > 0
@@ -66,7 +73,17 @@ export function RecupCouvertures({ manquantes }: { manquantes: number }) {
       );
       router.refresh();
     } catch {
-      setBilan("Recherche interrompue. Réessaie plus tard.");
+      setReprise(curseur);
+      // Les couvertures des vagues déjà passées sont enregistrées : annoncer
+      // un échec sec les ferait croire perdues, et relancer semblerait
+      // repartir de zéro. On dit donc ce qui est acquis.
+      setBilan(
+        (trouves > 0
+          ? `${pluriel(trouves, "couverture ajoutée", "couvertures ajoutées")} avant l'interruption. `
+          : "") +
+          "La recherche s'est arrêtée en chemin — relance pour reprendre là où elle en était.",
+      );
+      router.refresh();
     } finally {
       setEncours(false);
     }

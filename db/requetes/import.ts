@@ -359,6 +359,12 @@ export async function completerCouvertures(
    */
   apresId = 0,
   limite = 25,
+  /**
+   * Budget de la vague. Tenu large sous la fenêtre d'exécution (60 s sur
+   * Vercel) : dépasser, c'est perdre la vague entière, couvertures déjà
+   * trouvées comprises, et n'afficher qu'un « recherche interrompue ».
+   */
+  budgetMs = 20_000,
 ): Promise<{
   traites: number;
   trouves: number;
@@ -381,14 +387,23 @@ export async function completerCouvertures(
     .orderBy(livres.id)
     .limit(limite);
 
-  const { trouvees, substituts } = await resoudreCouvertures(
-    candidats.map((c) => c.isbn13!).filter(Boolean),
+  // On écarte les ISBN vides ici, et pas au moment de l'appel : le curseur se
+  // lit par rang dans la liste envoyée, donc les deux listes doivent se
+  // correspondre livre pour livre.
+  const interrogeables = candidats.filter((c) => c.isbn13);
+  const { trouvees, substituts, examines } = await resoudreCouvertures(
+    interrogeables.map((c) => c.isbn13!),
+    { budgetMs },
   );
 
+  // La vague a pu s'arrêter avant la fin du lot, faute de temps : le curseur
+  // doit alors s'arrêter là aussi, sinon les livres non examinés seraient
+  // sautés définitivement.
+  const traites = interrogeables.slice(0, examines);
   const parIsbn = new Map(trouvees.map((c) => [c.isbn13, c.url]));
 
-  for (const c of candidats) {
-    const url = c.isbn13 ? parIsbn.get(c.isbn13) : undefined;
+  for (const c of traites) {
+    const url = parIsbn.get(c.isbn13!);
     if (!url) continue;
     await db
       .update(livres)
@@ -408,10 +423,10 @@ export async function completerCouvertures(
     );
 
   return {
-    traites: candidats.length,
+    traites: traites.length,
     trouves: trouvees.length,
     substituts,
     restants,
-    curseur: candidats.length ? candidats[candidats.length - 1].id : apresId,
+    curseur: traites.length ? traites[traites.length - 1].id : apresId,
   };
 }

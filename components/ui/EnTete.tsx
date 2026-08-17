@@ -1,8 +1,14 @@
 import type { ReactNode } from "react";
 
+import { LienReglages } from "@/components/ui/LienReglages";
+
 /**
  * En-tête d'écran. Reste collé en haut de la zone défilable et absorbe la
  * marge d'encoche — sur iPhone, un titre placé sans ça passe sous l'heure.
+ *
+ * La roue des réglages est posée ici, pas dans chaque page : c'est le seul
+ * endroit traversé par tous les écrans, donc le seul où l'oubli est
+ * impossible.
  */
 export function EnTete({
   titre,
@@ -35,7 +41,12 @@ export function EnTete({
             </p>
           ) : null}
         </div>
-        {action ? <div className="shrink-0 pb-1">{action}</div> : null}
+        {/* L'action propre à l'écran garde la place d'honneur, la roue reste
+            au bord : sa position ne doit pas bouger d'un écran à l'autre. */}
+        <div className="flex shrink-0 items-center gap-2 pb-1">
+          {action}
+          <LienReglages />
+        </div>
       </div>
     </header>
   );
