@@ -23,6 +23,7 @@ export function ImportGoodreads() {
     completes: 0,
     inchanges: 0,
     lecturesAjoutees: 0,
+    lecturesCompletees: 0,
     echecs: 0,
   });
   const [couvertures, setCouvertures] = useState<string | null>(null);
@@ -67,6 +68,7 @@ export function ImportGoodreads() {
       completes: 0,
       inchanges: 0,
       lecturesAjoutees: 0,
+      lecturesCompletees: 0,
       echecs: 0,
     };
 
@@ -90,6 +92,7 @@ export function ImportGoodreads() {
         cumul.completes += data.completes;
         cumul.inchanges += data.inchanges;
         cumul.lecturesAjoutees += data.lecturesAjoutees;
+        cumul.lecturesCompletees += data.lecturesCompletees ?? 0;
         cumul.echecs += data.echecs?.length ?? 0;
       } catch {
         setErreur("Réseau interrompu pendant l'import.");
@@ -173,6 +176,15 @@ export function ImportGoodreads() {
               <div className="flex justify-between">
                 <dt className="text-encre-70">Lectures ajoutées</dt>
                 <dd>{nombre(bilan.lecturesAjoutees)}</dd>
+              </div>
+            ) : null}
+            {/* Distinct des lectures ajoutées : ce sont des lectures déjà
+                connues dont ce catalogue-ci a comblé une date manquante.
+                Les confondre laisserait croire à un historique dupliqué. */}
+            {bilan.lecturesCompletees > 0 ? (
+              <div className="flex justify-between">
+                <dt className="text-encre-70">Dates de lecture complétées</dt>
+                <dd>{nombre(bilan.lecturesCompletees)}</dd>
               </div>
             ) : null}
             <div className="flex justify-between">

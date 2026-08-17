@@ -16,6 +16,8 @@ export type ResultatLot = {
   inchanges: number;
   /** Lectures ajoutées à des livres existants */
   lecturesAjoutees: number;
+  /** Lectures déjà connues dont une borne manquante a été comblée */
+  lecturesCompletees: number;
   echecs: Array<{ titre: string; motif: string }>;
 };
 
@@ -98,6 +100,7 @@ export async function importerLot(
     completes: 0,
     inchanges: 0,
     lecturesAjoutees: 0,
+    lecturesCompletees: 0,
     echecs: [],
   };
   if (lot.length === 0) return resultat;
@@ -135,12 +138,22 @@ export async function importerLot(
     parEmpreinte.set(empreinte(e.titre, e.auteur), e);
   }
 
-  // Fins de lecture déjà enregistrées, pour ne pas rejouer un historique
-  // qu'un premier import a déjà posé.
-  const finsConnues = new Set<string>();
+  // Lectures déjà enregistrées, indexées par leur fin, pour ne pas rejouer un
+  // historique qu'un premier import a déjà posé. On garde leur identifiant et
+  // leur début : une lecture déjà connue peut encore être *complétée* par un
+  // second catalogue, et s'en tenir à un ensemble de fins l'interdisait.
+  const lecturesConnues = new Map<
+    string,
+    { id: number; debut: string | null }
+  >();
   if (existants.length > 0) {
     const dejaLa = await db
-      .select({ livreId: lectures.livreId, fin: lectures.fin })
+      .select({
+        id: lectures.id,
+        livreId: lectures.livreId,
+        fin: lectures.fin,
+        debut: lectures.debut,
+      })
       .from(lectures)
       .where(
         and(
@@ -151,7 +164,9 @@ export async function importerLot(
           isNotNull(lectures.fin),
         ),
       );
-    for (const l of dejaLa) finsConnues.add(`${l.livreId}|${l.fin}`);
+    for (const l of dejaLa) {
+      lecturesConnues.set(`${l.livreId}|${l.fin}`, { id: l.id, debut: l.debut });
+    }
   }
 
   for (const entree of lot) {
@@ -192,23 +207,56 @@ export async function importerLot(
           resultat.inchanges += 1;
         }
 
-        const nouvelles = (entree.periodes ?? []).filter(
-          (p) => !finsConnues.has(`${existant.id}|${p.fin}`),
-        );
+        /* Une période déjà connue par sa fin n'est pas rejouée — mais elle
+           n'est plus jetée pour autant. Elle était écartée en entier, date de
+           début comprise : Goodreads et StoryGraph ne donnent souvent que la
+           fin, Bookmory donne les deux, et verser Bookmory par-dessus ne
+           complétait donc jamais les débuts manquants. C'est le principe déjà
+           tenu pour les champs du livre — ne remplir que ce qui manque, sans
+           jamais écraser. */
+        const nouvelles: typeof entree.periodes = [];
+        for (const p of entree.periodes ?? []) {
+          const connue = lecturesConnues.get(`${existant.id}|${p.fin}`);
+          if (!connue) {
+            nouvelles.push(p);
+            continue;
+          }
+          // Un début postérieur à la fin déjà enregistrée décrit deux
+          // éditions ou deux lectures distinctes, pas la même : on préfère la
+          // borne manquante à une borne absurde.
+          if (connue.debut === null && p.debut && (!p.fin || p.debut <= p.fin)) {
+            await db
+              .update(lectures)
+              .set({ debut: p.debut })
+              .where(eq(lectures.id, connue.id));
+            connue.debut = p.debut;
+            resultat.lecturesCompletees += 1;
+          }
+        }
+
         if (nouvelles.length > 0) {
-          await db.insert(lectures).values(
-            nouvelles.map((p) => ({
-              livreId: existant.id,
-              debut: p.debut,
-              fin: p.fin,
-              abandonnee: entree.statut === "abandonne",
-              pageFinale:
-                entree.statut === "lu"
-                  ? (existant.pages ?? entree.pages ?? null)
-                  : null,
-            })),
-          );
-          for (const p of nouvelles) finsConnues.add(`${existant.id}|${p.fin}`);
+          const inserees = await db
+            .insert(lectures)
+            .values(
+              nouvelles.map((p) => ({
+                livreId: existant.id,
+                debut: p.debut,
+                fin: p.fin,
+                abandonnee: entree.statut === "abandonne",
+                pageFinale:
+                  entree.statut === "lu"
+                    ? (existant.pages ?? entree.pages ?? null)
+                    : null,
+              })),
+            )
+            .returning({ id: lectures.id, fin: lectures.fin, debut: lectures.debut });
+
+          for (const l of inserees) {
+            lecturesConnues.set(`${existant.id}|${l.fin}`, {
+              id: l.id,
+              debut: l.debut,
+            });
+          }
           resultat.lecturesAjoutees += nouvelles.length;
         }
 
@@ -254,16 +302,31 @@ export async function importerLot(
       if (entree.periodes?.length) {
         // Une ligne par période : c'est ainsi qu'une relecture cesse
         // d'écraser la première.
-        await db.insert(lectures).values(
-          entree.periodes.map((p) => ({
-            livreId: livre.id,
-            debut: p.debut,
-            fin: p.fin,
-            abandonnee: entree.statut === "abandonne",
-            pageFinale: entree.statut === "lu" ? livre.pages : null,
-          })),
-        );
-        for (const p of entree.periodes) finsConnues.add(`${livre.id}|${p.fin}`);
+        const inserees = await db
+          .insert(lectures)
+          .values(
+            entree.periodes.map((p) => ({
+              livreId: livre.id,
+              debut: p.debut,
+              fin: p.fin,
+              abandonnee: entree.statut === "abandonne",
+              pageFinale: entree.statut === "lu" ? livre.pages : null,
+            })),
+          )
+          .returning({
+            id: lectures.id,
+            fin: lectures.fin,
+            debut: lectures.debut,
+          });
+
+        // Le même livre peut revenir plus loin dans le lot, sous un autre
+        // titre : ses lectures sont déjà connues, et complétables.
+        for (const l of inserees) {
+          lecturesConnues.set(`${livre.id}|${l.fin}`, {
+            id: l.id,
+            debut: l.debut,
+          });
+        }
       } else if (
         // À défaut de périodes, l'historique ne se reconstruit que si le
         // catalogue a livré une date. Inventer un début de lecture
