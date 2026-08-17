@@ -1,25 +1,33 @@
 import { rechercherApple } from "./apple";
 import { rechercherBnf } from "./bnf";
-import { rechercher as rechercherOL, type Resultat, type Source } from "./openlibrary";
+import {
+  OPEN_LIBRARY_JOIGNABLE,
+  rechercher as rechercherOL,
+  type Resultat,
+  type Source,
+} from "./openlibrary";
 
 /**
- * Recherche de livre sur trois catalogues complémentaires.
+ * Recherche de livre sur des catalogues complémentaires.
  *
  * Aucun ne suffit seul :
- *   · Open Library a les pages, les couvertures et les genres, mais son
- *     catalogue francophone est troué (§11) — et elle ne répond plus ;
  *   · la BnF a tout le dépôt légal français et les ISBN du papier, mais ses
- *     notices Dublin Core n'ont ni pagination, ni couverture, ni genre ;
+ *     notices Dublin Core n'ont ni pagination, ni couverture, ni genre, et
+ *     son `bib.anywhere` remonte « Le vray et le faux protestant » pour
+ *     « Jamais plus » ;
  *   · Apple Books a la couverture, le rayon et un classement qui reconnaît un
- *     titre français, mais ni pagination ni ISBN du papier.
+ *     titre français, mais ni pagination ni ISBN du papier ;
+ *   · Open Library avait les trois, dont la pagination que personne d'autre
+ *     ne donne — elle est hors service, et n'est plus interrogée (voir
+ *     `OPEN_LIBRARY_JOIGNABLE`).
  *
- * Apple a été ajoutée quand l'écran d'ajout s'est retrouvé quasi vide : Open
- * Library en échec, il ne restait que la BnF, qui remontait « Le vray et le
- * faux protestant » pour « Jamais plus » — sans image ni genre.
+ * On les interroge en parallèle et on fusionne. Si l'une tombe, les autres
+ * répondent quand même : c'est précisément ce qui manquait quand « Open
+ * Library ne répond pas » vidait tout l'écran.
  *
- * On interroge les trois en parallèle et on fusionne. Si l'une tombe, les
- * autres répondent quand même : c'est précisément ce qui manquait quand
- * « Open Library ne répond pas » vidait tout l'écran.
+ * `allSettled` attend néanmoins la plus lente : une source qu'on sait morte
+ * n'est pas seulement inutile, elle retient les autres. Écarter Open Library
+ * a ramené la recherche de 4 146 ms à 655 ms.
  */
 
 export type EtatSource = "ok" | "vide" | "echec";
@@ -196,17 +204,23 @@ export async function rechercherLivre(
   }
 
   // `allSettled` et non `all` : la panne d'un catalogue ne doit pas
-  // emporter les résultats de l'autre.
-  const [ol, bnf, apple] = await Promise.allSettled([
-    avecReessai(() => rechercherOL(q, 16)),
+  // emporter les résultats des autres. Mais elle les fait attendre — d'où
+  // l'exclusion d'une source dont on sait déjà qu'elle ne répondra pas.
+  const [bnf, apple, ol] = await Promise.allSettled([
     avecReessai(() => rechercherBnf(q, 16)),
     avecReessai(() => rechercherApple(q, 16)),
+    OPEN_LIBRARY_JOIGNABLE
+      ? avecReessai(() => rechercherOL(q, 16))
+      : Promise.resolve([] as Resultat[]),
   ]);
 
   const etat = (r: PromiseSettledResult<Resultat[]>): EtatSource =>
     r.status === "rejected" ? "echec" : r.value.length ? "ok" : "vide";
 
   const sources: Record<Source, EtatSource> = {
+    // « vide » et non « echec » tant qu'elle n'est pas interrogée : annoncer
+    // une panne à chaque recherche ne dirait rien qu'on ne sache déjà, et
+    // ferait croire la liste amputée d'un catalogue qui répondrait demain.
     openlibrary: etat(ol),
     bnf: etat(bnf),
     apple: etat(apple),
@@ -223,7 +237,7 @@ export async function rechercherLivre(
   }
 
   // Chaque résultat garde la place que sa source lui a donnée.
-  const brut: Classe[] = [ol, bnf, apple].flatMap((s) =>
+  const brut: Classe[] = [bnf, apple, ol].flatMap((s) =>
     (s.status === "fulfilled" ? s.value : []).map((r, rang) => ({ ...r, rang })),
   );
 

@@ -8,6 +8,26 @@ import { resoudreGenre } from "./genres";
  * formulaire que l'utilisateur peut corriger, et l'ajout manuel reste ouvert.
  */
 
+/**
+ * Open Library est-elle interrogée ?
+ *
+ * Non, depuis le 17 août 2026 : le service est hors ligne. Constaté sur deux
+ * réseaux indépendants — délai dépassé systématique depuis un poste, et
+ * `ECONNREFUSED` sur 207.241.234.205 depuis une autre infrastructure. La
+ * connexion est activement refusée, ce n'est donc pas un pare-feu local.
+ *
+ * Le coût n'était pas qu'un manque : `Promise.allSettled` attendant toutes
+ * les sources, chaque recherche de livre patientait quatre secondes pour rien
+ * — 4 146 ms au lieu de 149 ms sur « Jamais plus ». À l'enrichissement, elle
+ * ajoutait deux secondes par livre que les autres sources n'avaient pas su
+ * traiter.
+ *
+ * Le code de la source reste entier : c'est la seule à connaître la
+ * pagination, et son catalogue vaut qu'on y revienne. Repasser cette
+ * constante à `true` la réinterroge, sans autre changement.
+ */
+export const OPEN_LIBRARY_JOIGNABLE = false;
+
 export type Source = "openlibrary" | "bnf" | "apple";
 
 export type Resultat = {

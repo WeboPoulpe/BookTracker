@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { resoudreGenre, SOUS_GENRES } from "./genres";
+import { OPEN_LIBRARY_JOIGNABLE } from "./openlibrary";
 import { memeTitre, normaliser, texteDepuisHtml } from "./texte";
 
 /**
@@ -332,10 +333,17 @@ async function enrichirUn(livre: LivreAEnrichir): Promise<Apport | null> {
   }
 
   if (livre.besoinCouverture && !apport.couverture && livre.isbn13) {
-    for (const [url, delai] of [
+    // Open Library ferme la marche, et seulement si elle répond : hors
+    // service, elle ajoutait deux secondes à chaque livre que les deux autres
+    // sources n'avaient pas su illustrer — soit précisément les plus longs.
+    const parIsbn: Array<readonly [string, number | undefined]> = [
       [urlGoogle(livre.isbn13), undefined],
-      [urlOpenLibrary(livre.isbn13), DELAI_DERNIER_RECOURS],
-    ] as const) {
+    ];
+    if (OPEN_LIBRARY_JOIGNABLE) {
+      parIsbn.push([urlOpenLibrary(livre.isbn13), DELAI_DERNIER_RECOURS]);
+    }
+
+    for (const [url, delai] of parIsbn) {
       try {
         const image = await imagePlausible(url, delai);
         if (image) {
