@@ -2,7 +2,7 @@ import { and, eq, isNotNull, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { lectures, livres } from "@/db/schema";
-import { resoudreCouvertures } from "@/lib/couvertures";
+import { enrichirFiches } from "@/lib/catalogues";
 import type { LivreImporte } from "@/lib/goodreads";
 import { memeTitre, normaliser } from "@/lib/texte";
 
@@ -318,38 +318,50 @@ export async function importerLot(
 }
 
 /**
- * Livres encore sans image.
+ * Ce qui manque encore aux fiches, et que les catalogues savent fournir.
  *
- * Le compte excluait ceux qui n'ont pas d'ISBN, faute de pouvoir les
- * chercher. Ils étaient alors invisibles deux fois : absents du compte, et
- * absents de la recherche — neuf livres que rien à l'écran ne signalait. La
- * recherche par titre les atteint désormais, ils rentrent donc dans le
+ * Le compte des couvertures excluait les livres sans ISBN, faute de pouvoir
+ * les chercher. Ils étaient alors invisibles deux fois : absents du compte,
+ * et absents de la recherche — neuf livres que rien à l'écran ne signalait.
+ * La recherche par titre les atteint désormais, ils rentrent donc dans le
  * compte.
+ *
+ * `resume` n'y figure pas et n'y figurera jamais : c'est le résumé personnel
+ * de l'intrigue, ce que la quatrième de couverture est justement écrite pour
+ * ne pas dire.
  */
-export async function compterSansCouverture(
+export async function compterFichesIncompletes(
   utilisateurId: string,
-): Promise<number> {
+): Promise<{ sansCouverture: number; sansSynopsis: number; total: number }> {
   const [ligne] = await db
-    .select({ total: sql<number>`count(*)::int` })
+    .select({
+      sansCouverture: sql<number>`count(*) filter (where ${livres.couvertureUrl} is null)::int`,
+      sansSynopsis: sql<number>`count(*) filter (where ${livres.synopsis} is null or ${livres.synopsis} = '')::int`,
+      total: sql<number>`count(*) filter (where ${livres.couvertureUrl} is null or ${livres.synopsis} is null or ${livres.synopsis} = '')::int`,
+    })
     .from(livres)
-    .where(
-      and(
-        eq(livres.utilisateurId, utilisateurId),
-        sql`${livres.couvertureUrl} is null`,
-      ),
-    );
-  return ligne?.total ?? 0;
+    .where(eq(livres.utilisateurId, utilisateurId));
+
+  return {
+    sansCouverture: ligne?.sansCouverture ?? 0,
+    sansSynopsis: ligne?.sansSynopsis ?? 0,
+    total: ligne?.total ?? 0,
+  };
 }
 
 /**
- * Complète les couvertures manquantes, par vagues.
+ * Complète couvertures et synopsis manquants, par vagues.
  *
- * Aucun CSV n'en contient : ni Goodreads, ni StoryGraph, ni Bookmory. Elles
- * se récupèrent donc auprès des catalogues, par ISBN puis par titre et
- * auteur, en écartant les images de remplacement qu'ils servent en HTTP 200
- * quand ils ne connaissent pas le livre (voir lib/couvertures.ts).
+ * Aucun CSV n'en contient : ni Goodreads, ni StoryGraph, ni Bookmory. Les
+ * deux se récupèrent donc auprès des catalogues — et d'une même requête,
+ * puisque c'est la même fiche Apple qui porte l'image et la quatrième de
+ * couverture. Les demander séparément doublerait les appels sans rien
+ * apprendre de plus (voir lib/catalogues.ts).
+ *
+ * Rien n'est jamais écrasé : un synopsis déjà écrit reste tel quel, et
+ * `resume` — le résumé personnel de l'intrigue — n'est pas touché du tout.
  */
-export async function completerCouvertures(
+export async function completerFiches(
   utilisateurId: string,
   /**
    * Curseur : ne traite que les livres d'identifiant supérieur.
@@ -369,6 +381,7 @@ export async function completerCouvertures(
 ): Promise<{
   traites: number;
   trouves: number;
+  synopsis: number;
   substituts: number;
   restants: number;
   /** Dernier identifiant examiné, à repasser tel quel à la vague suivante */
@@ -380,19 +393,21 @@ export async function completerCouvertures(
       isbn13: livres.isbn13,
       titre: livres.titre,
       auteur: livres.auteur,
+      couvertureUrl: livres.couvertureUrl,
+      synopsis: livres.synopsis,
     })
     .from(livres)
     .where(
       and(
         eq(livres.utilisateurId, utilisateurId),
-        sql`${livres.couvertureUrl} is null`,
+        sql`(${livres.couvertureUrl} is null or ${livres.synopsis} is null or ${livres.synopsis} = '')`,
         sql`${livres.id} > ${apresId}`,
       ),
     )
     .orderBy(livres.id)
     .limit(limite);
 
-  const { trouvees, substituts, examines } = await resoudreCouvertures(
+  const { apports, substituts, examines } = await enrichirFiches(
     candidats.map((c) => ({
       cle: String(c.id),
       // Un ISBN vide vaut un ISBN absent : la recherche par titre prend le
@@ -400,6 +415,8 @@ export async function completerCouvertures(
       isbn13: c.isbn13 || null,
       titre: c.titre,
       auteur: c.auteur,
+      besoinCouverture: c.couvertureUrl === null,
+      besoinSynopsis: !c.synopsis,
     })),
     { budgetMs },
   );
@@ -408,15 +425,29 @@ export async function completerCouvertures(
   // doit alors s'arrêter là aussi, sinon les livres non examinés seraient
   // sautés définitivement.
   const traites = candidats.slice(0, examines);
-  const parCle = new Map(trouvees.map((c) => [c.cle, c.url]));
+  const parCle = new Map(apports.map((a) => [a.cle, a]));
+
+  let trouves = 0;
+  let synopsis = 0;
 
   for (const c of traites) {
-    const url = parCle.get(String(c.id));
-    if (!url) continue;
-    await db
-      .update(livres)
-      .set({ couvertureUrl: url })
-      .where(eq(livres.id, c.id));
+    const apport = parCle.get(String(c.id));
+    if (!apport) continue;
+
+    // Les besoins ont été calculés avant la vague : les revérifier ici
+    // n'apporterait rien, mais poser un champ déjà rempli l'écraserait.
+    const set: { couvertureUrl?: string; synopsis?: string } = {};
+    if (apport.couverture && c.couvertureUrl === null) {
+      set.couvertureUrl = apport.couverture.url;
+      trouves += 1;
+    }
+    if (apport.synopsis && !c.synopsis) {
+      set.synopsis = apport.synopsis;
+      synopsis += 1;
+    }
+    if (Object.keys(set).length === 0) continue;
+
+    await db.update(livres).set(set).where(eq(livres.id, c.id));
   }
 
   const [{ restants }] = await db
@@ -425,13 +456,14 @@ export async function completerCouvertures(
     .where(
       and(
         eq(livres.utilisateurId, utilisateurId),
-        sql`${livres.couvertureUrl} is null`,
+        sql`(${livres.couvertureUrl} is null or ${livres.synopsis} is null or ${livres.synopsis} = '')`,
       ),
     );
 
   return {
     traites: traites.length,
-    trouves: trouvees.length,
+    trouves,
+    synopsis,
     substituts,
     restants,
     curseur: traites.length ? traites[traites.length - 1].id : apresId,

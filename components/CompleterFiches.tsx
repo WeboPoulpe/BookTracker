@@ -7,21 +7,34 @@ import { Bouton } from "@/components/ui/Bouton";
 import { nombre, pluriel } from "@/lib/format";
 
 /**
- * Récupération des couvertures, à la demande, depuis les réglages.
+ * Complètement des fiches, à la demande, depuis les réglages.
  *
  * Elle vivait uniquement au bout du tunnel d'import, donc inatteignable une
  * fois l'import terminé — or c'est précisément après coup qu'on constate les
  * manques. Et la réponse dépend du réseau de la machine : un poste dont le
- * pare-feu coupe Open Library ne trouvera rien là où le serveur trouvera
+ * pare-feu coupe un catalogue ne trouvera rien là où le serveur trouvera
  * beaucoup. L'action doit donc être rejouable depuis l'app déployée.
+ *
+ * Couverture et synopsis voyagent ensemble parce qu'ils viennent de la même
+ * fiche : deux boutons auraient interrogé le catalogue deux fois pour un
+ * livre à qui il manque les deux.
  */
-export function RecupCouvertures({ manquantes }: { manquantes: number }) {
+export function CompleterFiches({
+  sansCouverture,
+  sansSynopsis,
+  total,
+}: {
+  sansCouverture: number;
+  sansSynopsis: number;
+  /** Livres à qui il manque l'un ou l'autre — le compte des vagues à mener */
+  total: number;
+}) {
   const router = useRouter();
   const [encours, setEncours] = useState(false);
   const [bilan, setBilan] = useState<string | null>(null);
   // Point de reprise après une interruption : sans lui, un nouvel essai
   // réexaminerait d'abord tous les livres que le premier n'a pas su
-  // illustrer, et n'atteindrait jamais la suite.
+  // compléter, et n'atteindrait jamais la suite.
   const [reprise, setReprise] = useState(0);
 
   async function lancer() {
@@ -29,8 +42,9 @@ export function RecupCouvertures({ manquantes }: { manquantes: number }) {
     setBilan("Recherche en cours…");
 
     let trouves = 0;
+    let synopsis = 0;
     let substituts = 0;
-    let restants = manquantes;
+    let restants = total;
     let curseur = reprise;
     let examines = 0;
 
@@ -49,13 +63,14 @@ export function RecupCouvertures({ manquantes }: { manquantes: number }) {
         if (d.traites === 0) break;
 
         trouves += d.trouves;
+        synopsis += d.synopsis ?? 0;
         substituts += d.substituts ?? 0;
         restants = d.restants;
         curseur = d.curseur;
         examines += d.traites;
 
         setBilan(
-          `${pluriel(trouves, "couverture trouvée", "couvertures trouvées")} sur ${nombre(examines)} livres examinés…`,
+          `${nombre(trouves)} couverture(s), ${nombre(synopsis)} synopsis sur ${nombre(examines)} livres examinés…`,
         );
       }
 
@@ -63,23 +78,23 @@ export function RecupCouvertures({ manquantes }: { manquantes: number }) {
       // livres qu'un catalogue momentanément muet avait laissés de côté.
       setReprise(0);
       setBilan(
-        `${pluriel(trouves, "couverture ajoutée", "couvertures ajoutées")}` +
+        acquis(trouves, synopsis) +
           (substituts > 0
             ? `, ${nombre(substituts)} image(s) générique(s) écartée(s)`
             : "") +
           (restants > 0
-            ? `. ${nombre(restants)} livres restent sans image : les catalogues ne l'ont pas. Tu peux la choisir à la main sur la fiche.`
-            : ". Tout est illustré."),
+            ? `. ${nombre(restants)} fiche(s) restent incomplètes : les catalogues n'ont pas su les compléter. Tu peux les remplir à la main sur la fiche.`
+            : ". Toutes les fiches sont complètes."),
       );
       router.refresh();
     } catch {
       setReprise(curseur);
-      // Les couvertures des vagues déjà passées sont enregistrées : annoncer
-      // un échec sec les ferait croire perdues, et relancer semblerait
-      // repartir de zéro. On dit donc ce qui est acquis.
+      // Ce que les vagues déjà passées ont trouvé est enregistré : annoncer
+      // un échec sec le ferait croire perdu, et relancer semblerait repartir
+      // de zéro. On dit donc ce qui est acquis.
       setBilan(
-        (trouves > 0
-          ? `${pluriel(trouves, "couverture ajoutée", "couvertures ajoutées")} avant l'interruption. `
+        (trouves > 0 || synopsis > 0
+          ? `${acquis(trouves, synopsis)} avant l'interruption. `
           : "") +
           "La recherche s'est arrêtée en chemin — relance pour reprendre là où elle en était.",
       );
@@ -91,18 +106,18 @@ export function RecupCouvertures({ manquantes }: { manquantes: number }) {
 
   return (
     <div className="px-4 py-3">
-      <p className="text-[15px] font-medium">Couvertures manquantes</p>
+      <p className="text-[15px] font-medium">Compléter les fiches</p>
       <p className="mt-1 text-[12.5px] leading-relaxed text-encre-45">
-        {manquantes === 0
-          ? "Tous tes livres ont une image."
-          : `${pluriel(manquantes, "livre")} sans image. On la cherche par ISBN chez Open Library puis Google Books ; les vignettes génériques sont écartées.`}
+        {total === 0
+          ? "Toutes tes fiches ont une image et un synopsis."
+          : `${detail(sansCouverture, sansSynopsis)} On cherche chez Apple Books par titre et auteur, puis par ISBN chez Open Library et Google Books ; les vignettes génériques sont écartées. Rien de ce que tu as déjà écrit n'est touché.`}
       </p>
 
       {bilan ? (
         <p className="mt-2 text-[13px] leading-relaxed text-encre-70">{bilan}</p>
       ) : null}
 
-      {manquantes > 0 ? (
+      {total > 0 ? (
         <div className="mt-3">
           <Bouton
             variante="doux"
@@ -110,10 +125,34 @@ export function RecupCouvertures({ manquantes }: { manquantes: number }) {
             disabled={encours}
             onClick={lancer}
           >
-            {encours ? "Recherche…" : "Chercher les couvertures"}
+            {encours ? "Recherche…" : "Compléter les fiches"}
           </Bouton>
         </div>
       ) : null}
     </div>
   );
+}
+
+/** « 3 couvertures et 12 synopsis ajoutés », en taisant ce qui vaut zéro. */
+function acquis(couvertures: number, synopsis: number): string {
+  const bouts = [
+    couvertures > 0
+      ? pluriel(couvertures, "couverture ajoutée", "couvertures ajoutées")
+      : null,
+    synopsis > 0
+      ? pluriel(synopsis, "synopsis ajouté", "synopsis ajoutés")
+      : null,
+  ].filter(Boolean);
+
+  return bouts.length ? bouts.join(", ") : "Aucun complément trouvé";
+}
+
+/** Ce qui manque, en ne nommant que ce qui manque vraiment. */
+function detail(sansCouverture: number, sansSynopsis: number): string {
+  const bouts = [
+    sansCouverture > 0 ? `${pluriel(sansCouverture, "livre")} sans image` : null,
+    sansSynopsis > 0 ? `${nombre(sansSynopsis)} sans synopsis` : null,
+  ].filter(Boolean);
+
+  return `${bouts.join(", ")}.`;
 }

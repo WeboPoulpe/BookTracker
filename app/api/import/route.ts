@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { completerCouvertures, importerLot } from "@/db/requetes/import";
+import { completerFiches, importerLot } from "@/db/requetes/import";
 import { corpsValide, erreur } from "@/lib/api";
 import { utilisateurCourantId } from "@/lib/utilisateur";
 import { FORMATS, STATUTS } from "@/lib/validation";
@@ -67,7 +67,7 @@ export async function POST(requete: Request) {
 }
 
 /**
- * Complète les couvertures, par vagues.
+ * Complète couvertures et synopsis, par vagues.
  *
  * Le client rappelle la route avec le `curseur` rendu par la vague
  * précédente : une requête unique dépasserait la fenêtre d'exécution dès
@@ -78,13 +78,13 @@ export async function PATCH(requete: Request) {
     const utilisateurId = await utilisateurCourantId();
     const brut = new URL(requete.url).searchParams.get("apres");
     const apres = Number(brut);
-    const r = await completerCouvertures(
+    const r = await completerFiches(
       utilisateurId,
       Number.isSafeInteger(apres) && apres > 0 ? apres : 0,
     );
     return NextResponse.json(r);
   } catch (e) {
     console.error("PATCH /api/import", e);
-    return erreur("serveur", "Récupération des couvertures interrompue.", 500);
+    return erreur("serveur", "Complètement des fiches interrompu.", 500);
   }
 }

@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
 
-import { memeTitre, normaliser } from "./texte";
+import { memeTitre, normaliser, texteDepuisHtml } from "./texte";
 
 /**
- * Récupération des couvertures.
+ * Ce que les catalogues peuvent apporter à une fiche : la couverture, et la
+ * quatrième de couverture.
  *
- * Deux pièges, tous deux constatés sur la bibliothèque réelle :
+ * Trois pièges, tous constatés sur la bibliothèque réelle :
  *
  * 1. **Une source qui ne connaît pas un livre répond souvent 200 avec une
  *    image de remplacement**, plutôt qu'une erreur. Google Books sert ainsi
@@ -17,20 +18,31 @@ import { memeTitre, normaliser } from "./texte";
  * 2. **Les catalogues anglophones ignorent le poche français.** Sur 36 livres
  *    à ISBN restés sans image, Google n'avait que son placeholder et Open
  *    Library ne répondait pas. D'où une source interrogée par titre et
- *    auteur, seule capable d'atteindre aussi les livres sans ISBN — que la
- *    recherche laissait jusqu'ici entièrement de côté.
+ *    auteur, seule capable d'atteindre aussi les livres sans ISBN.
+ *
+ * 3. **Le texte arrive balisé**, et pas toujours de la même façon — voir
+ *    `texteDepuisHtml`.
+ *
+ * Une seule interrogation d'Apple rapporte les deux : les demander
+ * séparément doublerait les requêtes sans rien apprendre de plus.
  */
 
-/** Livre à illustrer. L'ISBN peut manquer : la recherche par titre reste. */
-export type LivreACouvrir = {
+/** Livre à compléter, et ce qui lui manque. */
+export type LivreAEnrichir = {
   /** Identifiant opaque, rendu tel quel — la couche base s'y retrouve. */
   cle: string;
   isbn13: string | null;
   titre: string;
   auteur: string;
+  besoinCouverture: boolean;
+  besoinSynopsis: boolean;
 };
 
-export type Couverture = { cle: string; url: string; empreinte: string };
+export type Apport = {
+  cle: string;
+  couverture?: { url: string; empreinte: string };
+  synopsis?: string;
+};
 
 /**
  * Substituts déjà rencontrés, gardés en amorce.
@@ -47,6 +59,23 @@ const SUBSTITUTS_CONNUS = new Set([
 
 /** En deçà, ce n'est pas une couverture mais un pixel de remplissage. */
 const TAILLE_MINIMALE = 1500;
+
+/**
+ * Un texte plus court n'est pas une quatrième de couverture.
+ *
+ * Certaines fiches ne portent qu'une mention d'édition — « Nouvelle
+ * traduction », « Édition collector ». La poser en synopsis ferait croire à
+ * un résumé et masquerait le champ vide qu'on aurait su remplir à la main.
+ */
+const SYNOPSIS_MINIMAL = 80;
+
+/**
+ * Au-delà, ce n'est plus un synopsis mais un dossier de presse.
+ *
+ * Coupé sur une frontière de phrase plutôt qu'au caractère près : un texte
+ * tranché en plein mot se lit comme une donnée abîmée.
+ */
+const SYNOPSIS_MAXIMAL = 4000;
 
 /**
  * Délais d'attente, par source.
@@ -84,7 +113,7 @@ async function imagePlausible(url: string, delaiMs?: number) {
   const image = await telecharger(url, delaiMs);
   if (!image) return null;
   if (SUBSTITUTS_CONNUS.has(image.empreinte)) return null;
-  return image;
+  return { url, empreinte: image.empreinte };
 }
 
 const urlGoogle = (isbn13: string) =>
@@ -95,21 +124,36 @@ const urlGoogle = (isbn13: string) =>
 const urlOpenLibrary = (isbn13: string) =>
   `https://covers.openlibrary.org/b/isbn/${isbn13}-L.jpg?default=false`;
 
-type Resultat = { titre: string; auteur: string; vignette: string };
+/** Ramène le texte sous le plafond, sur une fin de phrase quand c'est possible. */
+function borner(texte: string): string {
+  if (texte.length <= SYNOPSIS_MAXIMAL) return texte;
+
+  const tronque = texte.slice(0, SYNOPSIS_MAXIMAL);
+  const fin = Math.max(
+    tronque.lastIndexOf(". "),
+    tronque.lastIndexOf(".\n"),
+    tronque.lastIndexOf("… "),
+  );
+  return fin > SYNOPSIS_MAXIMAL / 2
+    ? tronque.slice(0, fin + 1)
+    : `${tronque.trimEnd()}…`;
+}
+
+type Resultat = { titre: string; auteur: string; vignette: string; description: string };
 
 /**
  * Le résultat désigne-t-il bien notre livre ?
  *
  * Une recherche par titre rend forcément des approximations, et une
  * couverture fausse est bien pire qu'une couverture absente : elle se donne
- * pour vraie, et rien à l'écran ne la dénonce. On exige donc que le titre
- * passe la règle d'appariement — celle-là même qui empêche « La femme de
- * ménage » d'avaler « La Femme de ménage voit tout » — *et* qu'un mot du nom
- * d'auteur se retrouve de part et d'autre. Le prénom seul ne suffirait pas à
- * distinguer deux homonymes, mais deux romancières nommées McFadden écrivant
- * le même titre n'existent pas.
+ * pour vraie, et rien à l'écran ne la dénonce. Un synopsis emprunté au tome
+ * suivant serait pire encore — il raconterait la suite. On exige donc que le
+ * titre passe la règle d'appariement — celle-là même qui empêche « La femme
+ * de ménage » d'avaler « La Femme de ménage voit tout » — *et* qu'un mot du
+ * nom d'auteur se retrouve de part et d'autre.
  *
- * En cas de doute, on ne prend rien : le repli graphique est prévu pour ça.
+ * En cas de doute, on ne prend rien : le repli graphique est prévu pour ça,
+ * et un champ vide s'écrit à la main.
  */
 function correspond(r: Resultat, titre: string, auteur: string): boolean {
   if (!memeTitre(r.titre, titre)) return false;
@@ -139,7 +183,7 @@ function correspond(r: Resultat, titre: string, auteur: string): boolean {
 async function chercherApple(
   titre: string,
   auteur: string,
-): Promise<string | null> {
+): Promise<{ vignette: string | null; synopsis: string | null } | null> {
   const terme = encodeURIComponent(`${titre} ${auteur}`);
   const r = await fetch(
     `https://itunes.apple.com/search?country=FR&entity=ebook&limit=5&term=${terme}`,
@@ -152,81 +196,96 @@ async function chercherApple(
       trackName?: string;
       artistName?: string;
       artworkUrl100?: string;
+      description?: string;
     }>;
   };
 
   for (const brut of données.results ?? []) {
-    if (!brut.trackName || !brut.artistName || !brut.artworkUrl100) continue;
-    const candidat = {
+    if (!brut.trackName || !brut.artistName) continue;
+    const candidat: Resultat = {
       titre: brut.trackName,
       auteur: brut.artistName,
-      vignette: brut.artworkUrl100,
+      vignette: brut.artworkUrl100 ?? "",
+      description: brut.description ?? "",
     };
     if (!correspond(candidat, titre, auteur)) continue;
-    // La vignette est servie en 100 px, illisible sur une étagère. Le gabarit
-    // se réécrit dans l'adresse ; Apple rend alors la même image en grand.
-    return candidat.vignette.replace(/\/100x100bb\.jpg$/, "/600x600bb.jpg");
+
+    const propre = candidat.description
+      ? texteDepuisHtml(candidat.description)
+      : "";
+
+    return {
+      // La vignette est servie en 100 px, illisible sur une étagère. Le
+      // gabarit se réécrit dans l'adresse ; Apple rend alors la même image en
+      // grand.
+      vignette: candidat.vignette
+        ? candidat.vignette.replace(/\/100x100bb\.jpg$/, "/600x600bb.jpg")
+        : null,
+      synopsis: propre.length >= SYNOPSIS_MINIMAL ? borner(propre) : null,
+    };
   }
 
   return null;
 }
 
 /**
- * Première source qui rend une image plausible pour ce livre.
+ * Ce que les catalogues savent apporter à ce livre.
  *
- * L'ordre suit ce que les sources ont réellement donné : Google Books a
- * fourni les vingt et une couvertures existantes, Apple Books atteint les
- * éditions françaises que Google ignore, Open Library ferme la marche faute
- * d'avoir jamais rien rendu.
+ * Apple passe en premier quand le livre a besoin d'un texte : c'est la seule
+ * source qui en fournit, et la même requête rend aussi la couverture. Google
+ * et Open Library ne sont sollicités que si l'image manque encore.
  */
-async function chercher(livre: LivreACouvrir): Promise<Couverture | null> {
-  const tentatives: Array<() => Promise<{ url: string; empreinte: string } | null>> =
-    [];
+async function enrichirUn(livre: LivreAEnrichir): Promise<Apport | null> {
+  const apport: Apport = { cle: livre.cle };
 
-  if (livre.isbn13) {
-    const url = urlGoogle(livre.isbn13);
-    tentatives.push(async () => {
-      const image = await imagePlausible(url);
-      return image ? { url, empreinte: image.empreinte } : null;
-    });
-  }
-
-  tentatives.push(async () => {
-    const url = await chercherApple(livre.titre, livre.auteur);
-    if (!url) return null;
-    const image = await imagePlausible(url);
-    return image ? { url, empreinte: image.empreinte } : null;
-  });
-
-  if (livre.isbn13) {
-    const url = urlOpenLibrary(livre.isbn13);
-    tentatives.push(async () => {
-      const image = await imagePlausible(url, DELAI_DERNIER_RECOURS);
-      return image ? { url, empreinte: image.empreinte } : null;
-    });
-  }
-
-  for (const tenter of tentatives) {
+  if (livre.besoinSynopsis || livre.besoinCouverture) {
     try {
-      const trouve = await tenter();
-      if (trouve) return { cle: livre.cle, ...trouve };
+      const apple = await chercherApple(livre.titre, livre.auteur);
+      if (apple) {
+        if (livre.besoinSynopsis && apple.synopsis) {
+          apport.synopsis = apple.synopsis;
+        }
+        if (livre.besoinCouverture && apple.vignette) {
+          const image = await imagePlausible(apple.vignette);
+          if (image) apport.couverture = image;
+        }
+      }
     } catch {
-      // Source injoignable : on passe à la suivante. Une couverture absente
-      // n'est pas un échec, le repli graphique est prévu pour ça.
+      // Source injoignable : les suivantes ont peut-être l'image.
     }
   }
-  return null;
+
+  if (livre.besoinCouverture && !apport.couverture && livre.isbn13) {
+    for (const [url, delai] of [
+      [urlGoogle(livre.isbn13), undefined],
+      [urlOpenLibrary(livre.isbn13), DELAI_DERNIER_RECOURS],
+    ] as const) {
+      try {
+        const image = await imagePlausible(url, delai);
+        if (image) {
+          apport.couverture = image;
+          break;
+        }
+      } catch {
+        // Une couverture absente n'est pas un échec, le repli est prévu.
+      }
+    }
+  }
+
+  return apport.couverture || apport.synopsis ? apport : null;
 }
 
 /**
- * Résout les couvertures d'un lot, en écartant les images partagées.
+ * Complète un lot de fiches, en écartant les images partagées.
  *
  * C'est la répétition qui trahit le substitut : deux livres différents ne
  * peuvent pas avoir la même image au bit près. La détection s'ajuste donc
- * d'elle-même, sans dépendre d'une liste d'empreintes à maintenir.
+ * d'elle-même, sans dépendre d'une liste d'empreintes à maintenir. Seule
+ * l'image est retirée : le synopsis rapporté par la même requête reste bon,
+ * et le perdre obligerait à tout redemander.
  */
-export async function resoudreCouvertures(
-  livres: LivreACouvrir[],
+export async function enrichirFiches(
+  livres: LivreAEnrichir[],
   options: {
     /** Plafond de débit : Open Library coupe au-delà de 10 requêtes/seconde */
     pauseMs?: number;
@@ -236,21 +295,21 @@ export async function resoudreCouvertures(
      * C'est lui qui borne la vague, pas le nombre de livres : un catalogue
      * lent transforme vingt-cinq recherches en plusieurs minutes, et la
      * fonction serveur est coupée bien avant — la vague entière est alors
-     * perdue, y compris les couvertures déjà trouvées. On rend donc la main
-     * de nous-mêmes, en disant jusqu'où on est allé.
+     * perdue, y compris ce qui avait déjà été trouvé. On rend donc la main de
+     * nous-mêmes, en disant jusqu'où on est allé.
      */
     budgetMs?: number;
   } = {},
-): Promise<{ trouvees: Couverture[]; substituts: number; examines: number }> {
+): Promise<{ apports: Apport[]; substituts: number; examines: number }> {
   const { pauseMs = 120, budgetMs = 20_000 } = options;
-  const brut: Couverture[] = [];
+  const brut: Apport[] = [];
   const debut = Date.now();
   let examines = 0;
 
   for (const livre of livres) {
-    const c = await chercher(livre);
+    const a = await enrichirUn(livre);
     examines += 1;
-    if (c) brut.push(c);
+    if (a) brut.push(a);
     // Au moins un livre est toujours traité, sinon une vague trop lente
     // n'avancerait jamais et la boucle appelante tournerait à vide.
     if (Date.now() - debut > budgetMs) break;
@@ -258,9 +317,22 @@ export async function resoudreCouvertures(
   }
 
   const compte = new Map<string, number>();
-  for (const c of brut) compte.set(c.empreinte, (compte.get(c.empreinte) ?? 0) + 1);
+  for (const a of brut) {
+    if (!a.couverture) continue;
+    const e = a.couverture.empreinte;
+    compte.set(e, (compte.get(e) ?? 0) + 1);
+  }
 
-  const trouvees = brut.filter((c) => compte.get(c.empreinte) === 1);
+  let substituts = 0;
+  const apports = brut
+    .map((a) => {
+      if (a.couverture && compte.get(a.couverture.empreinte) !== 1) {
+        substituts += 1;
+        return { ...a, couverture: undefined };
+      }
+      return a;
+    })
+    .filter((a) => a.couverture || a.synopsis);
 
-  return { trouvees, substituts: brut.length - trouvees.length, examines };
+  return { apports, substituts, examines };
 }

@@ -51,6 +51,53 @@ function sansAccent(valeur: string): string {
     .trim();
 }
 
+function decoderEntites(s: string): string {
+  return (
+    s
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;|&apos;/g, "'")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+      // `&amp;` en dernier : le décoder plus tôt ferait renaître une entité
+      // depuis « &amp;lt; » et le second tour la prendrait pour du balisage.
+      .replace(/&amp;/g, "&")
+  );
+}
+
+function sansBalises(s: string): string {
+  return (
+    s
+      // Les sauts de bloc deviennent des retours à la ligne. Les effacer sans
+      // rien mettre à la place colle les phrases : « qui peuvent nous faire le
+      // plus de mal.Lily Blossom Bloom n'a pas eu… »
+      .replace(/<\s*(br|hr)\s*\/?\s*>/gi, "\n")
+      .replace(/<\s*\/\s*(p|div|li|h[1-6])\s*>/gi, "\n\n")
+      .replace(/<[^>]*>/g, "")
+  );
+}
+
+/**
+ * Texte lisible depuis le HTML d'un catalogue.
+ *
+ * Les descriptions d'Apple Books arrivent balisées, et pas toujours de la
+ * même façon : `<br />` bruts chez les uns, `&lt;br /&gt;` échappés chez les
+ * autres — parfois les deux dans la même fiche. Une seule passe laisserait
+ * donc du balisage visible à l'écran, d'où le second tour.
+ */
+export function texteDepuisHtml(brut: string): string {
+  let v = brut;
+  // Deux tours : le premier découvre le balisage échappé, le second le traite.
+  for (let i = 0; i < 2; i += 1) v = decoderEntites(sansBalises(v));
+
+  return v
+    .replace(/[ \t ]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /**
  * Marqueurs de sous-titre ou de mention d'édition.
  *
