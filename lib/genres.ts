@@ -59,6 +59,7 @@ export const SOUS_GENRES: Record<string, string[]> = {
     "Enemies to lovers",
     "Romance sportive",
     "Romance mafia",
+    "Romantic suspense",
   ],
   fantasy: [
     "High fantasy",
