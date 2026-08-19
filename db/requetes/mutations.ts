@@ -430,19 +430,65 @@ export async function majLecture(
   // Le statut du livre suit sa lecture : la rouvrir sans le changer
   // laisserait un livre « lu » dont la seule lecture est en cours, et le
   // ferait disparaître du compteur de l'année sans qu'il reparaisse ailleurs.
-  if (effaceLaFin) {
-    await db
-      .update(livres)
-      .set({ statut: "en_cours" })
-      .where(eq(livres.id, lecture.livreId));
-  }
+  // Une même règle pour les deux chemins qui touchent au journal : rouvrir
+  // une lecture ici, en supprimer une là, tout cela se relit dans le statut.
+  if (effaceLaFin) await realignerStatut(lecture.livreId);
 
   return { ok: true, lecture: maj };
 }
 
+/**
+ * Remet le statut du livre en accord avec son journal de lectures.
+ *
+ * Le statut et les lectures se répondent : c'est l'absence de fin qui rend un
+ * livre « en cours », et une lecture close qui le rend « lu ». Modifier le
+ * journal sans toucher au statut les laissait diverger — supprimer une
+ * lecture posée par erreur retirait bien le livre du compteur de l'année,
+ * mais le laissait marqué « lu » partout ailleurs, sans plus aucune lecture
+ * pour le justifier.
+ *
+ * « En pause » est préservé tant qu'une lecture reste ouverte : c'est
+ * précisément ce qui distingue une saga mise de côté d'une saga abandonnée,
+ * et rien dans le journal ne permet de le redéduire.
+ */
+async function realignerStatut(livreId: number) {
+  const [livre] = await db
+    .select({ statut: livres.statut })
+    .from(livres)
+    .where(eq(livres.id, livreId))
+    .limit(1);
+  if (!livre) return;
+
+  const toutes = await db
+    .select({ fin: lectures.fin, abandonnee: lectures.abandonnee })
+    .from(lectures)
+    .where(eq(lectures.livreId, livreId))
+    .orderBy(desc(lectures.fin), desc(lectures.id));
+
+  const ouverte = toutes.some((l) => l.fin === null);
+  const closes = toutes.filter((l) => l.fin !== null);
+
+  const attendu = ouverte
+    ? livre.statut === "en_pause"
+      ? "en_pause"
+      : "en_cours"
+    : closes.length > 0
+      ? closes[0].abandonnee
+        ? "abandonne"
+        : "lu"
+      : // Plus aucune lecture : le livre n'a jamais été ouvert, ou son
+        // historique vient d'être effacé. « À lire » est le seul état qui ne
+        // prétende rien.
+        "a_lire";
+
+  if (attendu !== livre.statut) {
+    await db.update(livres).set({ statut: attendu }).where(eq(livres.id, livreId));
+  }
+}
+
 export async function supprimerLecture(utilisateurId: string, id: number) {
   const [ligne] = await db
-    .select({ id: lectures.id })
+    .select({ id: lectures.id, livreId: lectures.livreId })
     .from(lectures)
     .innerJoin(livres, eq(livres.id, lectures.livreId))
     .where(and(eq(lectures.id, id), eq(livres.utilisateurId, utilisateurId)))
@@ -453,6 +499,12 @@ export async function supprimerLecture(utilisateurId: string, id: number) {
   // Les sessions partent en cascade : supprimer une lecture, c'est effacer
   // la période entière, pas la détacher de son journal.
   await db.delete(lectures).where(eq(lectures.id, id));
+
+  // Le statut ne survit pas à son journal : un livre « lu » dont on vient
+  // d'effacer la seule lecture n'est plus lu, et resterait sinon compté comme
+  // tel dans la bibliothèque alors qu'il a quitté le total de l'année.
+  await realignerStatut(ligne.livreId);
+
   return { id };
 }
 

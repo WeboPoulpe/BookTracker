@@ -64,22 +64,80 @@ type ReponseOL = {
 
 /**
  * « Le Palais des vents (Les Sept Sœurs, #4) » → série + tome.
- * Goodreads comme Open Library utilisent cette convention entre parenthèses.
+ *
+ * Quatre conventions cohabitent, et il a fallu les reconnaître toutes : les
+ * catalogues anglophones écrivent la série entre parenthèses avec un dièse,
+ * la BnF et Apple l'écrivent en français, chacun à sa façon. Tant qu'Apple
+ * n'était pas interrogée, seule la première comptait — ajouter la source sans
+ * ajouter ses conventions a fait disparaître le pré-remplissage du champ
+ * « série » à l'ajout d'un livre.
+ *
+ *   Le Palais des vents (Les Sept Sœurs, #4)   anglophone
+ *   Les Légendes - tome 1 - Black Venus        série en tête, titre en queue
+ *   La chronique des Bridgerton (Tomes 5 & 6)  intégrale, rangée au premier
+ *   Un Palais d'épines et de roses T3          tome accolé
+ *
+ * Le tome n'est jamais deviné d'un nombre isolé : « 1984 » et « Fahrenheit
+ * 451 » sont des titres, pas des tomes. Chaque motif exige un mot qui
+ * l'annonce — « tome », « T », ou le dièse.
  */
 export function extraireSerie(titre: string): {
   titre: string;
   serie: string | null;
   tome: number | null;
 } {
-  const m = titre.match(/^(.*?)\s*\(([^()]*?),?\s*#(\d+(?:\.\d+)?)\s*\)\s*$/);
-  if (!m) return { titre: titre.trim(), serie: null, tome: null };
+  const brut = titre.trim();
 
-  const [, base, serie, tome] = m;
-  return {
-    titre: base.trim(),
-    serie: serie.trim() || null,
-    tome: Number.parseFloat(tome),
-  };
+  // 1. « Titre (Série, #4) » — Goodreads, Open Library.
+  const diese = brut.match(/^(.*?)\s*\(([^()]*?),?\s*#(\d+(?:\.\d+)?)\s*\)\s*$/);
+  if (diese) {
+    return {
+      titre: diese[1].trim(),
+      serie: diese[2].trim() || null,
+      tome: Number.parseFloat(diese[3]),
+    };
+  }
+
+  // 2. « Série - tome 1 - Titre », « Série, T1 : Titre » : la série précède,
+  //    le titre suit. Un séparateur est exigé des deux côtés du tome — sans
+  //    lui, on ne saurait ni où la série s'arrête ni où le titre commence.
+  const enTete = brut.match(
+    /^(.+?)\s*[-–—,]\s*(?:tomes?|T)\s?(\d+(?:[.,]\d+)?)\s*[-–—:]\s*(.+)$/i,
+  );
+  if (enTete) {
+    return {
+      titre: enTete[3].trim(),
+      serie: enTete[1].trim() || null,
+      tome: Number.parseFloat(enTete[2].replace(",", ".")),
+    };
+  }
+
+  // 3. « Série (Tomes 5 & 6) », « Série, Tome 5 », « Série. 7 & 8 » — une
+  //    intégrale se range au premier tome qu'elle contient, seul numéro
+  //    qu'une colonne numérique puisse porter.
+  const enQueue = brut.match(
+    /^(.+?)\s*[,.:]?\s*[(]?\s*tomes?\s*(\d+(?:[.,]\d+)?)(?:\s*(?:&|et|-|–|à)\s*\d+)?\s*[)]?\s*$/i,
+  );
+  if (enQueue) {
+    return {
+      titre: brut,
+      serie: enQueue[1].replace(/[,.:\s]+$/, "").trim() || null,
+      tome: Number.parseFloat(enQueue[2].replace(",", ".")),
+    };
+  }
+
+  // 4. « Série T3 » ou « Série T3.5 » : le T accolé, sans le mot « tome ».
+  //    Exigé collé au nombre, sinon « Le T rouge » deviendrait un tome.
+  const accole = brut.match(/^(.+?)\s+T\s?(\d+(?:[.,]\d+)?)\s*$/);
+  if (accole) {
+    return {
+      titre: brut,
+      serie: accole[1].trim() || null,
+      tome: Number.parseFloat(accole[2].replace(",", ".")),
+    };
+  }
+
+  return { titre: brut, serie: null, tome: null };
 }
 
 function meilleurIsbn(isbns?: string[]): string | null {
